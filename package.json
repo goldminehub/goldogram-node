@@ -1,0 +1,35 @@
+{
+  "name": "goldogram-node",
+  "version": "1.0.0",
+  "description": "Goldogram Full Node",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:win": "electron-builder --win --x64",
+    "build:mac": "electron-builder --mac --arm64"
+  },
+  "build": {
+    "appId": "org.goldminequant.node",
+    "productName": "Goldogram Node",
+    "win": {
+      "target": [{"target": "nsis", "arch": ["x64"]}],
+      "icon": "assets/icon.ico"
+    },
+    "mac": {
+      "category": "public.app-category.utilities",
+      "target": [{"target": "dmg", "arch": ["arm64"]}],
+      "icon": "assets/icon.icns"
+    },
+    "extraResources": [
+      {
+        "from": "bin/goldogram-core.exe",
+        "to": "goldogram-core.exe"
+      }
+    ],
+    "files": ["src/**/*", "renderer/**/*", "assets/**/*"]
+  },
+  "devDependencies": {
+    "electron": "^35.0.0",
+    "electron-builder": "^26.0.0"
+  }
+}
