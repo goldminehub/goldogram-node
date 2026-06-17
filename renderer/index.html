@@ -78,6 +78,37 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
 </head>
 <body>
 
+<div id="setup-overlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:#0a0a0a;z-index:9999;display:flex;align-items:center;justify-content:center;">
+  <div style="width:380px;background:#111;border:1px solid #1e1e1e;border-radius:16px;padding:32px;">
+    <div style="text-align:center;margin-bottom:28px;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="2" style="width:48px;height:48px;margin-bottom:12px;">
+        <polygon points="12,2 22,8 22,16 12,22 2,16 2,8"/>
+        <line x1="12" y1="2" x2="12" y2="22"/>
+        <line x1="2" y1="8" x2="22" y2="8"/>
+        <line x1="2" y1="16" x2="22" y2="16"/>
+      </svg>
+      <h1 style="font-size:20px;font-weight:700;color:#D4AF37;margin-bottom:6px;">Goldogram Full Node</h1>
+      <p style="font-size:13px;color:#555;line-height:1.5;">Login with your Goldogram account to connect your wallet and become a validator.</p>
+    </div>
+    <div id="setup-step-login">
+      <input id="setup-username" placeholder="Username" style="width:100%;background:#0d0d0d;border:1px solid #222;border-radius:8px;padding:10px 14px;color:#e8e0cc;font-size:14px;outline:none;box-sizing:border-box;margin-bottom:10px;"/>
+      <input id="setup-password" type="password" placeholder="Password" style="width:100%;background:#0d0d0d;border:1px solid #222;border-radius:8px;padding:10px 14px;color:#e8e0cc;font-size:14px;outline:none;box-sizing:border-box;margin-bottom:16px;"/>
+      <button onclick="setupLogin()" style="width:100%;padding:12px;background:linear-gradient(135deg,#D4AF37,#A67C00);color:#000;font-weight:700;font-size:14px;border:none;border-radius:8px;cursor:pointer;margin-bottom:10px;">Login to Goldogram</button>
+      <div id="setup-msg" style="font-size:12px;text-align:center;min-height:20px;"></div>
+    </div>
+    <div id="setup-step-welcome" style="display:none;">
+      <div style="background:#0a1a00;border:1px solid #1a3a00;border-radius:8px;padding:14px;margin-bottom:16px;">
+        <div style="font-size:11px;color:#4ade80;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px;">Connected as</div>
+        <div id="setup-username-display" style="font-size:15px;font-weight:600;color:#e8e0cc;margin-bottom:4px;"></div>
+        <div id="setup-address-display" style="font-size:11px;color:#D4AF37;font-family:monospace;word-break:break-all;"></div>
+      </div>
+      <button onclick="setupJoinValidator()" id="setup-join-btn" style="width:100%;padding:12px;background:linear-gradient(135deg,#D4AF37,#A67C00);color:#000;font-weight:700;font-size:14px;border:none;border-radius:8px;cursor:pointer;margin-bottom:10px;">Become Validator — Stake 10,000 GoGX (1 year lock)</button>
+      <button onclick="setupSkip()" style="width:100%;padding:10px;background:transparent;color:#555;border:1px solid #222;border-radius:8px;cursor:pointer;font-size:13px;">Skip — Run as Full Node only</button>
+      <div id="setup-join-msg" style="font-size:12px;text-align:center;margin-top:10px;min-height:20px;"></div>
+    </div>
+  </div>
+</div>
+
 <div class="titlebar">
   <div class="titlebar-logo">
     <svg viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="2">
@@ -108,6 +139,10 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
     <div class="nav-item" onclick="showPanel('peers')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="17" cy="7" r="3"/><circle cx="7" cy="17" r="3"/><path d="M14 14l-4-4"/><circle cx="7" cy="7" r="3"/><circle cx="17" cy="17" r="3"/></svg>
       Peers
+    </div>
+    <div class="nav-item" onclick="showPanel('validator')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      Validator
     </div>
     <div class="sidebar-section">System</div>
     <div class="nav-item" onclick="showPanel('info')">
@@ -255,6 +290,53 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
       <div class="controls">
         <button class="btn btn-primary" onclick="saveConfig()">Save Config</button>
         <button class="btn btn-secondary" onclick="resetConfig()">Reset Defaults</button>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-validator">
+      <div style="flex:1;overflow-y:auto;padding:16px;">
+
+        <!-- Bootstrap Stats -->
+        <div style="background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:16px;margin-bottom:12px;">
+          <div style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">Bootstrap Program Stats</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+            <div style="background:#0d0d0d;border-radius:6px;padding:10px;"><div style="font-size:10px;color:#444;margin-bottom:4px;text-transform:uppercase;">Slots Remaining</div><div style="font-size:18px;font-weight:600;color:#D4AF37;" id="bs-slots">—</div></div>
+            <div style="background:#0d0d0d;border-radius:6px;padding:10px;"><div style="font-size:10px;color:#444;margin-bottom:4px;text-transform:uppercase;">Active Validators</div><div style="font-size:18px;font-weight:600;color:#D4AF37;" id="bs-active">—</div></div>
+            <div style="background:#0d0d0d;border-radius:6px;padding:10px;"><div style="font-size:10px;color:#444;margin-bottom:4px;text-transform:uppercase;">Stake Required</div><div style="font-size:18px;font-weight:600;color:#4ade80;">10,000 GoGX</div></div>
+            <div style="background:#0d0d0d;border-radius:6px;padding:10px;"><div style="font-size:10px;color:#444;margin-bottom:4px;text-transform:uppercase;">Lock Period</div><div style="font-size:18px;font-weight:600;color:#60c8dc;">365 days</div></div>
+          </div>
+          <div style="background:#0a1a00;border:1px solid #1a3a00;border-radius:6px;padding:12px;font-size:12px;color:#4ade80;line-height:1.6;">
+            ⚡ Join the Validator Bootstrap Program. 10,000 GoGX allocated from Treasury, locked 1 year. Earn 40% of all block rewards immediately.
+          </div>
+        </div>
+
+        <!-- Login -->
+        <div style="background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:16px;margin-bottom:12px;">
+          <div style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">Login to Goldogram</div>
+          <input id="login-username" placeholder="Username" style="width:100%;background:#0d0d0d;border:1px solid #1a1a1a;border-radius:6px;padding:8px 12px;color:#e8e0cc;font-size:13px;outline:none;box-sizing:border-box;margin-bottom:8px;"/>
+          <input id="login-password" type="password" placeholder="Password" style="width:100%;background:#0d0d0d;border:1px solid #1a1a1a;border-radius:6px;padding:8px 12px;color:#e8e0cc;font-size:13px;outline:none;box-sizing:border-box;margin-bottom:8px;"/>
+          <button onclick="loginAndGetToken()" style="width:100%;padding:10px;background:#1a1200;color:#D4AF37;border:1px solid #2a2000;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;">Login → Auto-fill Token</button>
+          <div id="login-msg" style="margin-top:8px;font-size:11px;text-align:center;"></div>
+        </div>
+
+        <!-- Become Validator -->
+        <div style="background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:16px;margin-bottom:12px;">
+          <div style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">Become a Validator</div>
+          <label style="font-size:12px;color:#666;display:block;margin-bottom:6px;">Your GoGX Address</label>
+          <input id="validator-address" placeholder="GoXXX..." style="width:100%;background:#0d0d0d;border:1px solid #1a1a1a;border-radius:6px;padding:8px 12px;color:#e8e0cc;font-size:12px;font-family:monospace;outline:none;box-sizing:border-box;margin-bottom:8px;"/>
+          <label style="font-size:12px;color:#666;display:block;margin-bottom:6px;">Auth Token (JWT)</label>
+          <input id="validator-token" type="password" placeholder="eyJ..." style="width:100%;background:#0d0d0d;border:1px solid #1a1a1a;border-radius:6px;padding:8px 12px;color:#e8e0cc;font-size:13px;outline:none;box-sizing:border-box;margin-bottom:8px;"/>
+          <button onclick="joinBootstrap()" style="width:100%;padding:12px;background:linear-gradient(135deg,#D4AF37,#A67C00);color:#000;font-weight:700;font-size:14px;border:none;border-radius:8px;cursor:pointer;margin-bottom:6px;">Become Validator — Join Bootstrap Program</button>
+          <div id="validator-msg" style="font-size:12px;text-align:center;margin-top:8px;"></div>
+        </div>
+
+        <!-- Validator Status -->
+        <div style="background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:16px;">
+          <div style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">Validator Status</div>
+          <button onclick="checkValidatorStatus()" style="width:100%;padding:10px;background:#151515;color:#888;border:1px solid #222;border-radius:6px;cursor:pointer;font-size:13px;margin-bottom:10px;">Check My Validator Status</button>
+          <div id="validator-status" style="font-size:12px;color:#555;text-align:center;">Login above then check status.</div>
+        </div>
+
       </div>
     </div>
 
@@ -417,6 +499,147 @@ if (window.node) {
 
 addLog('Goldogram Full Node v1.0.0 ready.', 'success');
 addLog('1 GoGX = 1 gram of gold. Quantum-secure.', 'info');
+
+const API = 'https://goldminequant.org';
+
+async function loginAndGetToken() {
+  const username = document.getElementById('login-username').value.trim();
+  const password = document.getElementById('login-password').value.trim();
+  const msg = document.getElementById('login-msg');
+  if (!username || !password) { msg.style.color='#f87171'; msg.textContent='Enter username and password.'; return; }
+  msg.style.color='#D4AF37'; msg.textContent='Logging in...';
+  try {
+    const res = await fetch(API + '/api/auth/login', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({username, password})
+    });
+    const data = await res.json();
+    if (data.token) {
+      document.getElementById('validator-token').value = data.token;
+      if (data.wallet && data.wallet.gog_address) {
+        document.getElementById('validator-address').value = data.wallet.gog_address;
+      }
+      msg.style.color='#4ade80'; msg.textContent='✅ Logged in! Token and address filled automatically.';
+    } else {
+      msg.style.color='#f87171'; msg.textContent='❌ ' + (data.error || 'Login failed');
+    }
+  } catch(e) { msg.style.color='#f87171'; msg.textContent='❌ ' + e.message; }
+}
+
+async function joinBootstrap() {
+  const token = document.getElementById('validator-token').value.trim();
+  const msg = document.getElementById('validator-msg');
+  if (!token) { msg.style.color='#f87171'; msg.textContent='Login first to get your token.'; return; }
+  msg.style.color='#D4AF37'; msg.textContent='Joining bootstrap program...';
+  try {
+    const res = await fetch(API + '/api/validator/join', {
+      method: 'POST',
+      headers: {'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json'}
+    });
+    const data = await res.json();
+    if (data.ok) {
+      msg.style.color='#4ade80'; msg.textContent='✅ ' + data.message;
+      loadBootstrapStats();
+    } else {
+      msg.style.color='#f87171'; msg.textContent='❌ ' + (data.error || 'Failed');
+    }
+  } catch(e) { msg.style.color='#f87171'; msg.textContent='❌ ' + e.message; }
+}
+
+async function checkValidatorStatus() {
+  const token = document.getElementById('validator-token').value.trim();
+  const statusEl = document.getElementById('validator-status');
+  if (!token) { statusEl.textContent='Login first.'; return; }
+  try {
+    const res = await fetch(API + '/api/validator/status', {
+      headers: {'Authorization': 'Bearer ' + token}
+    });
+    const data = await res.json();
+    if (data.is_validator) {
+      statusEl.innerHTML = '<span style="color:#4ade80">✅ Active Validator</span><br>' +
+        '<span style="color:#D4AF37">Stake: ' + (data.stake_gog||10000).toLocaleString() + ' GoGX</span><br>' +
+        '<span style="color:#666">Days remaining: ' + data.days_remaining + '</span><br>' +
+        '<span style="color:#666">Unlock at block: ' + (data.unlock_height||0).toLocaleString() + '</span>';
+    } else {
+      statusEl.innerHTML = '<span style="color:#888">Not a validator yet. Join the bootstrap program above.</span>';
+    }
+  } catch(e) { statusEl.textContent='Error: ' + e.message; }
+}
+
+async function loadBootstrapStats() {
+  try {
+    const res = await fetch(API + '/api/validator/bootstrap/stats');
+    const data = await res.json();
+    const s = document.getElementById('bs-slots');
+    const a = document.getElementById('bs-active');
+    if (s) s.textContent = data.slots_remaining ?? '—';
+    if (a) a.textContent = data.active_bootstrap_validators ?? '—';
+  } catch(e) {}
+}
+
+loadBootstrapStats();
+setInterval(loadBootstrapStats, 30000);
+
+let setupToken = '';
+let setupAddress = '';
+let setupUsername = '';
+
+async function setupLogin() {
+  const username = document.getElementById('setup-username').value.trim();
+  const password = document.getElementById('setup-password').value.trim();
+  const msg = document.getElementById('setup-msg');
+  if (!username || !password) { msg.style.color='#f87171'; msg.textContent='Enter username and password.'; return; }
+  msg.style.color='#D4AF37'; msg.textContent='Logging in...';
+  try {
+    const res = await fetch('https://goldminequant.org/api/auth/login', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({username, password})
+    });
+    const data = await res.json();
+    if (data.token) {
+      setupToken = data.token;
+      setupAddress = data.wallet && data.wallet.gog_address ? data.wallet.gog_address : '';
+      setupUsername = data.user && data.user.username ? data.user.username : username;
+      document.getElementById('setup-username-display').textContent = setupUsername;
+      document.getElementById('setup-address-display').textContent = setupAddress;
+      document.getElementById('validator-token').value = setupToken;
+      document.getElementById('validator-address').value = setupAddress;
+      document.getElementById('login-username').value = username;
+      document.getElementById('setup-step-login').style.display = 'none';
+      document.getElementById('setup-step-welcome').style.display = 'block';
+      msg.textContent = '';
+    } else {
+      msg.style.color='#f87171'; msg.textContent='❌ ' + (data.error || 'Login failed');
+    }
+  } catch(e) { msg.style.color='#f87171'; msg.textContent='❌ ' + e.message; }
+}
+
+async function setupJoinValidator() {
+  const msg = document.getElementById('setup-join-msg');
+  const btn = document.getElementById('setup-join-btn');
+  msg.style.color='#D4AF37'; msg.textContent='Joining bootstrap program...';
+  btn.disabled = true;
+  try {
+    const res = await fetch('https://goldminequant.org/api/validator/join', {
+      method: 'POST',
+      headers: {'Authorization': 'Bearer ' + setupToken, 'Content-Type': 'application/json'}
+    });
+    const data = await res.json();
+    if (data.ok) {
+      msg.style.color='#4ade80'; msg.textContent='✅ You are now a validator! Rewards start immediately.';
+      setTimeout(setupSkip, 2000);
+    } else {
+      msg.style.color='#f87171'; msg.textContent='❌ ' + (data.error || 'Failed');
+      btn.disabled = false;
+    }
+  } catch(e) { msg.style.color='#f87171'; msg.textContent='❌ ' + e.message; btn.disabled = false; }
+}
+
+function setupSkip() {
+  document.getElementById('setup-overlay').style.display = 'none';
+}
 </script>
 </body>
 </html>
