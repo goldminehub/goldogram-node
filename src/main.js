@@ -40,8 +40,10 @@ ipcMain.handle('start-node', (event, { datadir }) => {
     ? path.join(process.resourcesPath, binaryName)
     : path.join(__dirname, '../bin', binaryName);
 
-  const args = ['run'];
+  const args = ['--fullnode'];
   if (datadir) args.push('--datadir', datadir);
+  args.push('--seed-node', '87.255.81.125:8333');
+  args.push('--port', '0');
 
   nodeProcess = spawn(binaryPath, args);
 
@@ -77,7 +79,7 @@ ipcMain.handle('stop-node', () => {
 
 ipcMain.handle('get-status', async () => {
   try {
-    const res = await fetch('http://localhost:8080/api/status');
+    const res = await fetch('https://goldminequant.org/api/status');
     const data = await res.json();
     return { ok: true, data };
   } catch {

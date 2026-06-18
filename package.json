@@ -12,13 +12,27 @@
     "appId": "org.goldminequant.node",
     "productName": "Goldogram Node",
     "win": {
-      "target": [{"target": "nsis", "arch": ["x64"]}],
-      "icon": "assets/icon.ico"
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon-512.png"
     },
     "mac": {
       "category": "public.app-category.utilities",
-      "target": [{"target": "dmg", "arch": ["arm64"]}],
-      "icon": "assets/icon.icns"
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "assets/icon-512.png"
     },
     "extraResources": [
       {
@@ -26,7 +40,11 @@
         "to": "goldogram-core.exe"
       }
     ],
-    "files": ["src/**/*", "renderer/**/*", "assets/**/*"]
+    "files": [
+      "src/**/*",
+      "renderer/**/*",
+      "assets/**/*"
+    ]
   },
   "devDependencies": {
     "electron": "^35.0.0",
