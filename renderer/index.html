@@ -6,268 +6,154 @@
 <title>Goldogram Full Node</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
-body{background:#060608;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;height:100vh;display:flex;flex-direction:column;overflow:hidden;user-select:none;}
-
-/* Titlebar */
-
-.tb-user{position:relative;cursor:pointer;}
-.tb-dropdown{display:none;position:absolute;top:36px;right:0;width:280px;background:#0d0d14;border:1px solid #1a1a2e;border-radius:12px;padding:16px;z-index:1000;box-shadow:0 20px 40px rgba(0,0,0,0.8);}
-.tb-user:hover .tb-dropdown{display:block;}
-.tb-dd-title{font-size:10px;color:#444;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;}
-.tb-dd-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #0f0f18;font-size:12px;}
-.tb-dd-row:last-child{border-bottom:none;}
-.tb-dd-key{color:#444;}
-.tb-dd-val{color:#D4AF37;font-family:monospace;font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.tb-dd-val.green{color:#4ade80;}
-
-.titlebar{height:40px;background:#0a0a0e;display:flex;align-items:center;padding:0 16px;-webkit-app-region:drag;border-bottom:1px solid #1a1a2e;flex-shrink:0;}
-.tb-logo{display:flex;align-items:center;gap:10px;-webkit-app-region:no-drag;}
-.tb-logo img{width:24px;height:24px;border-radius:50%;}
-.tb-title{font-size:13px;font-weight:700;color:#D4AF37;letter-spacing:0.5px;}
-.tb-right{margin-left:auto;display:flex;align-items:center;gap:12px;-webkit-app-region:no-drag;}
-.tb-user{display:flex;align-items:center;gap:8px;}
-.tb-avatar{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#D4AF37,#A67C00);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#000;}
-.tb-username{font-size:12px;color:#D4AF37;font-weight:600;}
-.tb-address{font-size:10px;color:#555;font-family:monospace;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.status-pill{display:flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:#0a1a0a;border:1px solid #1a3a1a;color:#4ade80;}
-.status-pill.stopped{background:#1a0a0a;border-color:#3a1a1a;color:#f87171;}
-.status-dot{width:6px;height:6px;border-radius:50%;background:#4ade80;box-shadow:0 0 6px #4ade8066;}
-.status-dot.stopped{background:#f87171;box-shadow:none;}
-
-/* Layout */
+body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+.titlebar{height:38px;background:#0f0f0f;display:flex;align-items:center;padding:0 16px;-webkit-app-region:drag;border-bottom:1px solid #1a1a1a;flex-shrink:0;}
+.titlebar-logo{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#D4AF37;letter-spacing:0.5px;}
+.titlebar-logo svg{width:20px;height:20px;}
+.titlebar-status{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:11px;color:#666;-webkit-app-region:no-drag;}
+.status-dot{width:6px;height:6px;border-radius:50%;background:#333;}
+.status-dot.running{background:#4ade80;box-shadow:0 0 6px #4ade8066;}
+.status-dot.error{background:#f87171;}
 .main{display:flex;flex:1;overflow:hidden;}
-.sidebar{width:210px;background:#08080d;border-right:1px solid #12121e;display:flex;flex-direction:column;flex-shrink:0;padding:12px 0;}
-.sidebar-section{padding:12px 16px 6px;font-size:10px;font-weight:700;color:#333;text-transform:uppercase;letter-spacing:1.5px;}
-.nav-item{display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer;border-radius:8px;margin:1px 8px;color:#555;font-size:13px;font-weight:500;transition:all 0.15s;position:relative;}
-.nav-item:hover{background:#111118;color:#888;}
-.nav-item.active{background:linear-gradient(135deg,#1a1400,#0f0e00);color:#D4AF37;border:1px solid #2a2000;}
-.nav-item.active::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:60%;background:#D4AF37;border-radius:0 2px 2px 0;}
+.sidebar{width:200px;background:#0d0d0d;border-right:1px solid #1a1a1a;display:flex;flex-direction:column;flex-shrink:0;}
+.sidebar-section{padding:16px 12px 8px;font-size:10px;font-weight:600;color:#444;text-transform:uppercase;letter-spacing:1px;}
+.nav-item{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;border-radius:6px;margin:1px 8px;color:#666;font-size:13px;transition:all 0.15s;}
+.nav-item:hover{background:#151515;color:#999;}
+.nav-item.active{background:#1a1600;color:#D4AF37;}
 .nav-item svg{width:16px;height:16px;flex-shrink:0;}
-.nav-badge{margin-left:auto;background:#1a3a1a;color:#4ade80;font-size:10px;padding:2px 6px;border-radius:10px;font-weight:700;}
-
-/* Content */
-.content{flex:1;display:flex;flex-direction:column;overflow:hidden;background:#060608;}
+.content{flex:1;display:flex;flex-direction:column;overflow:hidden;}
 .panel{display:none;flex:1;overflow:hidden;flex-direction:column;}
 .panel.active{display:flex;}
-
-/* Price ticker */
-.price-ticker{background:#08080d;border-bottom:1px solid #12121e;padding:8px 16px;display:flex;align-items:center;gap:24px;flex-shrink:0;overflow-x:auto;}
-.ticker-item{display:flex;align-items:center;gap:8px;white-space:nowrap;}
-.ticker-label{font-size:10px;color:#444;text-transform:uppercase;letter-spacing:0.5px;}
-.ticker-value{font-size:13px;font-weight:700;color:#D4AF37;}
-.ticker-value.green{color:#4ade80;}
-.ticker-value.blue{color:#60a5fa;}
-.ticker-value.purple{color:#a78bfa;}
-.ticker-sep{color:#222;font-size:16px;}
-
-/* Dashboard grid */
-.dash-scroll{flex:1;overflow-y:auto;padding:16px;}
-.dash-scroll::-webkit-scrollbar{width:4px;}
-.dash-scroll::-webkit-scrollbar-thumb{background:#1a1a2e;border-radius:2px;}
-
-.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;}
-.stat-card{background:#0d0d14;border:1px solid #1a1a2e;border-radius:12px;padding:16px;position:relative;overflow:hidden;transition:border-color 0.2s;}
-.stat-card:hover{border-color:#2a2a4e;}
-.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#D4AF37,transparent);}
-.stat-label{font-size:10px;color:#444;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;font-weight:600;}
-.stat-value{font-size:22px;font-weight:700;color:#D4AF37;font-variant-numeric:tabular-nums;line-height:1;}
-.stat-sub{font-size:11px;color:#333;margin-top:5px;}
-.stat-change{font-size:11px;margin-top:4px;}
-.stat-change.up{color:#4ade80;}
-.stat-change.down{color:#f87171;}
-
-/* Charts row */
-.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;}
-.chart-card{background:#0d0d14;border:1px solid #1a1a2e;border-radius:12px;padding:16px;}
-.chart-title{font-size:11px;color:#555;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:12px;font-weight:600;}
-.mini-chart{height:60px;position:relative;overflow:hidden;}
-.mini-chart canvas{width:100%;height:100%;}
-
-/* Info cards row */
-.info-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px;}
-.info-card{background:#0d0d14;border:1px solid #1a1a2e;border-radius:12px;padding:14px;}
-.info-card-title{font-size:11px;color:#444;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;font-weight:600;}
-.info-row-item{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #0f0f18;font-size:12px;}
-.info-row-item:last-child{border-bottom:none;}
-.info-key{color:#444;}
-.info-val{color:#D4AF37;font-family:monospace;font-size:11px;}
-.info-val.green{color:#4ade80;}
-.info-val.blue{color:#60a5fa;}
-
-/* Log panel */
-.log-container{flex:1;overflow-y:auto;padding:8px 16px;font-family:'SF Mono','Fira Code',monospace;font-size:12px;line-height:1.7;}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:16px;flex-shrink:0;}
+.stat-card{background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:12px 14px;}
+.stat-label{font-size:11px;color:#555;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;}
+.stat-value{font-size:20px;font-weight:600;color:#D4AF37;font-variant-numeric:tabular-nums;}
+.stat-sub{font-size:11px;color:#444;margin-top:3px;}
+.section-header{padding:0 16px 8px;display:flex;align-items:center;justify-content:between;flex-shrink:0;}
+.section-title{font-size:12px;font-weight:600;color:#555;text-transform:uppercase;letter-spacing:0.5px;}
+.log-container{flex:1;overflow-y:auto;padding:8px 16px;font-family:'SF Mono','Fira Code',monospace;font-size:12px;line-height:1.6;}
 .log-container::-webkit-scrollbar{width:4px;}
-.log-container::-webkit-scrollbar-thumb{background:#1a1a2e;}
-.log-line{padding:1px 0;}
+.log-container::-webkit-scrollbar-track{background:#0a0a0a;}
+.log-container::-webkit-scrollbar-thumb{background:#222;}
+.log-line{padding:2px 0;border-bottom:1px solid #111;}
 .log-line.info{color:#6b9fd4;}
 .log-line.warn{color:#D4AF37;}
 .log-line.error{color:#f87171;}
 .log-line.success{color:#4ade80;}
-.log-time{color:#2a2a3e;margin-right:8px;}
-
-/* Controls */
-.controls{padding:12px 16px;background:#08080d;border-top:1px solid #12121e;display:flex;align-items:center;gap:10px;flex-shrink:0;}
-.btn{padding:8px 18px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:600;transition:all 0.15s;}
-.btn-start{background:linear-gradient(135deg,#D4AF37,#A67C00);color:#000;}
-.btn-start:hover{background:linear-gradient(135deg,#e0bc47,#b88800);}
-.btn-stop{background:#1a0808;color:#f87171;border:1px solid #3a1a1a;}
-.btn-stop:hover{background:#2a0808;}
-.btn-sec{background:#0d0d14;color:#666;border:1px solid #1a1a2e;}
-.btn-sec:hover{background:#12121e;color:#888;}
-
-/* Validator panel */
-.val-scroll{flex:1;overflow-y:auto;padding:16px;}
-.val-card{background:#0d0d14;border:1px solid #1a1a2e;border-radius:12px;padding:16px;margin-bottom:12px;}
-.val-card-title{font-size:11px;color:#444;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:14px;font-weight:600;}
-.val-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;}
-.val-stat{background:#060608;border:1px solid #12121e;border-radius:8px;padding:12px;text-align:center;}
-.val-stat-label{font-size:10px;color:#333;text-transform:uppercase;margin-bottom:6px;}
-.val-stat-value{font-size:16px;font-weight:700;color:#D4AF37;}
-.val-input{width:100%;background:#060608;border:1px solid #1a1a2e;border-radius:8px;padding:10px 14px;color:#e8e0cc;font-size:13px;outline:none;box-sizing:border-box;margin-bottom:10px;transition:border-color 0.2s;}
-.val-input:focus{border-color:#D4AF37;}
-.val-btn-gold{width:100%;padding:12px;background:linear-gradient(135deg,#D4AF37,#A67C00);color:#000;font-weight:700;font-size:14px;border:none;border-radius:8px;cursor:pointer;margin-bottom:8px;transition:all 0.15s;}
-.val-btn-gold:hover{background:linear-gradient(135deg,#e0bc47,#b88800);}
-.val-btn-dark{width:100%;padding:10px;background:#0d0d14;color:#555;border:1px solid #1a1a2e;border-radius:8px;cursor:pointer;font-size:13px;transition:all 0.15s;}
-.val-btn-dark:hover{background:#12121e;color:#888;}
-.val-info-box{background:#0a1a00;border:1px solid #1a3a00;border-radius:8px;padding:12px;font-size:12px;color:#4ade80;line-height:1.7;margin-bottom:14px;}
-
-/* Setup overlay */
-.setup-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(6,6,8,0.97);z-index:9999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(10px);}
-.setup-card{width:400px;background:#0d0d14;border:1px solid #1a1a2e;border-radius:16px;padding:36px;box-shadow:0 40px 80px rgba(0,0,0,0.8);}
-.setup-logo{text-align:center;margin-bottom:28px;}
-.setup-logo img{width:64px;height:64px;border-radius:50%;margin-bottom:14px;}
-.setup-title{font-size:22px;font-weight:700;color:#D4AF37;margin-bottom:6px;}
-.setup-sub{font-size:13px;color:#444;line-height:1.6;}
-.setup-input{width:100%;background:#060608;border:1px solid #1a1a2e;border-radius:8px;padding:12px 16px;color:#e8e0cc;font-size:14px;outline:none;box-sizing:border-box;margin-bottom:10px;transition:border-color 0.2s;}
-.setup-input:focus{border-color:#D4AF37;}
-.setup-btn-gold{width:100%;padding:13px;background:linear-gradient(135deg,#D4AF37,#A67C00);color:#000;font-weight:700;font-size:14px;border:none;border-radius:8px;cursor:pointer;margin-bottom:8px;transition:all 0.15s;}
-.setup-btn-gold:hover{background:linear-gradient(135deg,#e0bc47,#b88800);}
-.setup-btn-skip{width:100%;padding:11px;background:transparent;color:#444;border:1px solid #1a1a2e;border-radius:8px;cursor:pointer;font-size:13px;transition:all 0.15s;}
-.setup-btn-skip:hover{border-color:#2a2a3e;color:#666;}
-.setup-connected{background:#0a1a00;border:1px solid #1a3a00;border-radius:10px;padding:16px;margin-bottom:16px;}
-.setup-connected-label{font-size:10px;color:#4ade80;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
-.setup-connected-name{font-size:16px;font-weight:700;color:#e8e0cc;margin-bottom:4px;}
-.setup-connected-addr{font-size:11px;color:#D4AF37;font-family:monospace;word-break:break-all;}
-.setup-msg{font-size:12px;text-align:center;min-height:20px;margin-top:6px;}
-.show-pw-btn{background:transparent;border:none;color:#444;font-size:11px;cursor:pointer;margin-bottom:10px;padding:0;text-align:left;}
-.show-pw-btn:hover{color:#666;}
-
-/* Peers */
-.peers-scroll{flex:1;overflow-y:auto;padding:16px;}
-.peer-card{background:#0d0d14;border:1px solid #1a1a2e;border-radius:10px;padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;}
-.peer-addr{font-family:monospace;font-size:12px;color:#888;}
-.peer-info{display:flex;align-items:center;gap:12px;}
-.peer-badge{font-size:11px;padding:2px 8px;border-radius:6px;background:#0a1a0a;color:#4ade80;border:1px solid #1a3a1a;}
+.log-time{color:#333;margin-right:8px;}
+.controls{padding:12px 16px;background:#0d0d0d;border-top:1px solid #1a1a1a;display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.btn{padding:7px 16px;border-radius:6px;border:none;cursor:pointer;font-size:13px;font-weight:500;transition:all 0.15s;}
+.btn-primary{background:#D4AF37;color:#000;}
+.btn-primary:hover{background:#e0bc47;}
+.btn-primary:disabled{background:#2a2200;color:#554400;cursor:not-allowed;}
+.btn-danger{background:#1a0000;color:#f87171;border:1px solid #3a0000;}
+.btn-danger:hover{background:#2a0000;}
+.btn-secondary{background:#151515;color:#888;border:1px solid #222;}
+.btn-secondary:hover{background:#1a1a1a;color:#aaa;}
+.peers-list{flex:1;overflow-y:auto;padding:8px 16px;}
+.peer-item{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#111;border:1px solid #1a1a1a;border-radius:6px;margin-bottom:6px;}
+.peer-addr{font-family:'SF Mono',monospace;font-size:12px;color:#888;}
+.peer-height{font-size:12px;color:#D4AF37;}
+.peer-latency{font-size:11px;color:#555;}
+.empty-state{flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:#333;}
+.empty-state svg{width:40px;height:40px;opacity:0.3;}
+.config-form{padding:16px;flex:1;overflow-y:auto;}
+.form-group{margin-bottom:16px;}
+.form-label{font-size:12px;color:#666;margin-bottom:6px;display:block;}
+.form-input{width:100%;background:#111;border:1px solid #222;border-radius:6px;padding:8px 12px;color:#e8e0cc;font-size:13px;outline:none;}
+.form-input:focus{border-color:#D4AF37;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.node-info{padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.info-card{background:#111;border:1px solid #1a1a1a;border-radius:8px;padding:14px;}
+.info-card-title{font-size:11px;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;}
+.info-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #151515;font-size:12px;}
+.info-row:last-child{border-bottom:none;}
+.info-key{color:#555;}
+.info-val{color:#D4AF37;font-family:'SF Mono',monospace;}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:4px;font-size:11px;}
+.badge-green{background:#0a2a0a;color:#4ade80;border:1px solid #1a4a1a;}
+.badge-yellow{background:#1a1200;color:#D4AF37;border:1px solid #2a2000;}
+.badge-red{background:#1a0000;color:#f87171;border:1px solid #3a0000;}
 </style>
 </head>
 <body>
 
-<!-- Setup Overlay -->
-<div class="setup-overlay" id="setup-overlay">
-  <div class="setup-card">
-    <div class="setup-logo">
-      <img src="../assets/icon.png" onerror="this.style.display='none'" alt=""/>
-      <div class="setup-title">Goldogram Full Node</div>
-      <div class="setup-sub">Login with your Goldogram account to connect your wallet and start earning validator rewards.</div>
+<div id="setup-overlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:#0a0a0a;z-index:9999;display:flex;align-items:center;justify-content:center;">
+  <div style="width:380px;background:#111;border:1px solid #1e1e1e;border-radius:16px;padding:32px;">
+    <div style="text-align:center;margin-bottom:28px;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="2" style="width:48px;height:48px;margin-bottom:12px;">
+        <polygon points="12,2 22,8 22,16 12,22 2,16 2,8"/>
+        <line x1="12" y1="2" x2="12" y2="22"/>
+        <line x1="2" y1="8" x2="22" y2="8"/>
+        <line x1="2" y1="16" x2="22" y2="16"/>
+      </svg>
+      <h1 style="font-size:20px;font-weight:700;color:#D4AF37;margin-bottom:6px;">Goldogram Full Node</h1>
+      <p style="font-size:13px;color:#555;line-height:1.5;">Login with your Goldogram account to connect your wallet and become a validator.</p>
     </div>
     <div id="setup-step-login">
-      <input id="setup-username" class="setup-input" placeholder="Username" autocomplete="username"/>
-      <div style="position:relative;">
-        <input id="setup-password" class="setup-input" type="password" placeholder="Password" autocomplete="current-password"/>
-        <button class="show-pw-btn" onclick="togglePw('setup-password',this)" style="position:absolute;right:12px;top:14px;margin:0;">Show</button>
-      </div>
-      <button class="setup-btn-gold" onclick="setupLogin()">Login to Goldogram</button>
-      <div class="setup-msg" id="setup-msg"></div>
+      <input id="setup-username" placeholder="Username" style="width:100%;background:#0d0d0d;border:1px solid #222;border-radius:8px;padding:10px 14px;color:#e8e0cc;font-size:14px;outline:none;box-sizing:border-box;margin-bottom:10px;"/>
+      <input id="setup-password" type="password" placeholder="Password" style="width:100%;background:#0d0d0d;border:1px solid #222;border-radius:8px;padding:10px 14px;color:#e8e0cc;font-size:14px;outline:none;box-sizing:border-box;margin-bottom:16px;"/>
+      <button onclick="setupLogin()" style="width:100%;padding:12px;background:linear-gradient(135deg,#D4AF37,#A67C00);color:#000;font-weight:700;font-size:14px;border:none;border-radius:8px;cursor:pointer;margin-bottom:10px;">Login to Goldogram</button>
+      <div id="setup-msg" style="font-size:12px;text-align:center;min-height:20px;"></div>
     </div>
     <div id="setup-step-welcome" style="display:none;">
-      <div class="setup-connected">
-        <div class="setup-connected-label">✓ Connected as</div>
-        <div class="setup-connected-name" id="setup-username-display"></div>
-        <div class="setup-connected-addr" id="setup-address-display"></div>
+      <div style="background:#0a1a00;border:1px solid #1a3a00;border-radius:8px;padding:14px;margin-bottom:16px;">
+        <div style="font-size:11px;color:#4ade80;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px;">Connected as</div>
+        <div id="setup-username-display" style="font-size:15px;font-weight:600;color:#e8e0cc;margin-bottom:4px;"></div>
+        <div id="setup-address-display" style="font-size:11px;color:#D4AF37;font-family:monospace;word-break:break-all;"></div>
       </div>
-      <button class="setup-btn-gold" onclick="setupJoinValidator()" id="setup-join-btn">Become Validator — Join Bootstrap Program</button>
-      <button class="setup-btn-skip" onclick="setupSkip()">Skip — Run as Full Node only</button>
-      <div class="setup-msg" id="setup-join-msg"></div>
+      <button onclick="setupJoinValidator()" id="setup-join-btn" style="width:100%;padding:12px;background:linear-gradient(135deg,#D4AF37,#A67C00);color:#000;font-weight:700;font-size:14px;border:none;border-radius:8px;cursor:pointer;margin-bottom:10px;">Become Validator — Stake 10,000 GoGX (1 year lock)</button>
+      <button onclick="setupSkip()" style="width:100%;padding:10px;background:transparent;color:#555;border:1px solid #222;border-radius:8px;cursor:pointer;font-size:13px;">Skip — Run as Full Node only</button>
+      <div id="setup-join-msg" style="font-size:12px;text-align:center;margin-top:10px;min-height:20px;"></div>
     </div>
   </div>
 </div>
 
-<!-- Titlebar -->
 <div class="titlebar">
-  <div class="tb-logo">
-    <img src="../assets/icon.png" onerror="this.style.display='none'" style="width:22px;height:22px;border-radius:50%;"/>
-    <span class="tb-title">Goldogram Full Node</span>
+  <div class="titlebar-logo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="2">
+      <polygon points="12,2 22,8 22,16 12,22 2,16 2,8"/>
+      <line x1="12" y1="2" x2="12" y2="22"/>
+      <line x1="2" y1="8" x2="22" y2="8"/>
+      <line x1="2" y1="16" x2="22" y2="16"/>
+    </svg>
+    Goldogram Full Node
   </div>
-  <div class="tb-right">
-    <div class="tb-user" id="tb-user" style="display:none;">
-      <div class="tb-avatar" id="tb-avatar">G</div>
-      <div>
-        <div class="tb-username" id="tb-username"></div>
-        <div class="tb-address" id="tb-address"></div>
-      </div>
-      <div class="tb-dropdown">
-        <div class="tb-dd-title">My Account</div>
-        <div class="tb-dd-row"><span class="tb-dd-key">Username</span><span class="tb-dd-val" id="dd-username">—</span></div>
-        <div class="tb-dd-row"><span class="tb-dd-key">GoGX Address</span><span class="tb-dd-val" id="dd-address">—</span></div>
-        <div class="tb-dd-row"><span class="tb-dd-key">Validator</span><span class="tb-dd-val green" id="dd-validator">—</span></div>
-        <div class="tb-dd-row"><span class="tb-dd-key">Bootstrap Slots</span><span class="tb-dd-val" id="dd-slots">—</span></div>
-        <div class="tb-dd-row"><span class="tb-dd-key">Block Height</span><span class="tb-dd-val" id="dd-height">—</span></div>
-        <div class="tb-dd-row"><span class="tb-dd-key">GoGX Price</span><span class="tb-dd-val" id="dd-price">—</span></div>
-        <div class="tb-dd-row"><span class="tb-dd-key">Full Nodes</span><span class="tb-dd-val green" id="dd-nodes">—</span></div>
-        <div class="tb-dd-row"><span class="tb-dd-key">Validators</span><span class="tb-dd-val" id="dd-validators">—</span></div>
-      </div>
-    </div>
-    <div class="status-pill stopped" id="status-pill">
-      <div class="status-dot stopped" id="status-dot"></div>
-      <span id="status-text">Stopped</span>
-    </div>
+  <div class="titlebar-status">
+    <div class="status-dot" id="status-dot"></div>
+    <span id="status-text">Stopped</span>
   </div>
-</div>
-
-<!-- Price Ticker -->
-<div class="price-ticker">
-  <div class="ticker-item"><span class="ticker-label">GoGX Price</span><span class="ticker-value" id="tk-price">—</span></div>
-  <span class="ticker-sep">|</span>
-  <div class="ticker-item"><span class="ticker-label">Block Height</span><span class="ticker-value blue" id="tk-height">—</span></div>
-  <span class="ticker-sep">|</span>
-  <div class="ticker-item"><span class="ticker-label">Reward/Block</span><span class="ticker-value" id="tk-reward">—</span></div>
-  <span class="ticker-sep">|</span>
-  <div class="ticker-item"><span class="ticker-label">Hashrate</span><span class="ticker-value green" id="tk-hash">—</span></div>
-  <span class="ticker-sep">|</span>
-  <div class="ticker-item"><span class="ticker-label">Full Nodes</span><span class="ticker-value purple" id="tk-nodes">—</span></div>
-  <span class="ticker-sep">|</span>
-  <div class="ticker-item"><span class="ticker-label">Validators</span><span class="ticker-value" id="tk-validators">—</span></div>
-  <span class="ticker-sep">|</span>
-  <div class="ticker-item"><span class="ticker-label">Mempool</span><span class="ticker-value blue" id="tk-mempool">—</span></div>
 </div>
 
 <div class="main">
   <div class="sidebar">
     <div class="sidebar-section">Node</div>
-    <div class="nav-item active" onclick="showPanel('dashboard',this)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    <div class="nav-item active" onclick="showPanel('dashboard')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
       Dashboard
     </div>
-    <div class="nav-item" onclick="showPanel('logs',this)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+    <div class="nav-item" onclick="showPanel('logs')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="14" y2="18"/></svg>
       Logs
     </div>
-    <div class="nav-item" onclick="showPanel('peers',this)">
+    <div class="nav-item" onclick="showPanel('peers')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="17" cy="7" r="3"/><circle cx="7" cy="17" r="3"/><path d="M14 14l-4-4"/><circle cx="7" cy="7" r="3"/><circle cx="17" cy="17" r="3"/></svg>
       Peers
-      <span class="nav-badge" id="peers-badge">0</span>
     </div>
-    <div class="sidebar-section">Account</div>
-    <div class="nav-item" onclick="showPanel('validator',this)">
+    <div class="nav-item" onclick="showPanel('mining')" id="nav-mining">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      Mining
+    </div>
+    <div class="nav-item" onclick="showPanel('validator')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
       Validator
     </div>
     <div class="sidebar-section">System</div>
-    <div class="nav-item" onclick="showPanel('info',this)">
+    <div class="nav-item" onclick="showPanel('info')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       Node Info
     </div>
-    <div class="nav-item" onclick="showPanel('config',this)">
+    <div class="nav-item" onclick="showPanel('config')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M19.07 19.07l-1.41-1.41M4.93 19.07l1.41-1.41M1 12h3M20 12h3M12 1v3M12 20v3"/></svg>
       Config
     </div>
@@ -275,279 +161,242 @@ body{background:#060608;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
 
   <div class="content">
 
-    <!-- Dashboard -->
+    <!-- Dashboard Panel -->
     <div class="panel active" id="panel-dashboard">
-      <div class="dash-scroll">
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-label">GoGX Price (USD)</div>
-            <div class="stat-value" id="s-price">—</div>
-            <div class="stat-sub">1 GoGX = 1g Gold</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">Block Height</div>
-            <div class="stat-value" id="s-height">—</div>
-            <div class="stat-sub" id="s-tip">tip: —</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">Network Hashrate</div>
-            <div class="stat-value" id="s-hash">—</div>
-            <div class="stat-sub">GoldPoW / Blake3</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">Difficulty</div>
-            <div class="stat-value" id="s-diff">—</div>
-            <div class="stat-sub">Retarget: 100 blocks</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">Block Reward</div>
-            <div class="stat-value" id="s-reward">—</div>
-            <div class="stat-sub">GoGX / block</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">Active Validators</div>
-            <div class="stat-value" id="s-validators">—</div>
-            <div class="stat-sub">PoS + BFT</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">Full Nodes</div>
-            <div class="stat-value" id="s-nodes">—</div>
-            <div class="stat-sub">Live on network</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">Next Halving</div>
-            <div class="stat-value" id="s-halving">—</div>
-            <div class="stat-sub">blocks remaining</div>
-          </div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Block Height</div>
+          <div class="stat-value" id="stat-height">—</div>
+          <div class="stat-sub">Genesis: 0</div>
         </div>
-
-        <div class="charts-row">
-          <div class="chart-card">
-            <div class="chart-title">Block Reward Distribution</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
-              <div style="text-align:center;background:#060608;border-radius:8px;padding:10px;">
-                <div style="font-size:10px;color:#444;margin-bottom:4px;">PoW Mining</div>
-                <div style="font-size:15px;font-weight:700;color:#D4AF37;" id="r-pow">—</div>
-                <div style="font-size:10px;color:#333;">40%</div>
-              </div>
-              <div style="text-align:center;background:#060608;border-radius:8px;padding:10px;">
-                <div style="font-size:10px;color:#444;margin-bottom:4px;">PoS Validators</div>
-                <div style="font-size:15px;font-weight:700;color:#4ade80;" id="r-pos">—</div>
-                <div style="font-size:10px;color:#333;">40%</div>
-              </div>
-              <div style="text-align:center;background:#060608;border-radius:8px;padding:10px;">
-                <div style="font-size:10px;color:#444;margin-bottom:4px;">PoE</div>
-                <div style="font-size:15px;font-weight:700;color:#60a5fa;" id="r-poe">—</div>
-                <div style="font-size:10px;color:#333;">20%</div>
-              </div>
-            </div>
-          </div>
-          <div class="chart-card">
-            <div class="chart-title">Network Stats</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-              <div style="background:#060608;border-radius:8px;padding:10px;">
-                <div style="font-size:10px;color:#444;margin-bottom:4px;">Block Time</div>
-                <div style="font-size:15px;font-weight:700;color:#D4AF37;">3 sec</div>
-              </div>
-              <div style="background:#060608;border-radius:8px;padding:10px;">
-                <div style="font-size:10px;color:#444;margin-bottom:4px;">Blocks/Day</div>
-                <div style="font-size:15px;font-weight:700;color:#D4AF37;">28,800</div>
-              </div>
-              <div style="background:#060608;border-radius:8px;padding:10px;">
-                <div style="font-size:10px;color:#444;margin-bottom:4px;">Mempool</div>
-                <div style="font-size:15px;font-weight:700;color:#60a5fa;" id="s-mempool">—</div>
-              </div>
-              <div style="background:#060608;border-radius:8px;padding:10px;">
-                <div style="font-size:10px;color:#444;margin-bottom:4px;">Total Stake</div>
-                <div style="font-size:15px;font-weight:700;color:#4ade80;" id="s-stake">—</div>
-              </div>
-            </div>
-          </div>
+        <div class="stat-card">
+          <div class="stat-label">Peers</div>
+          <div class="stat-value" id="stat-peers">—</div>
+          <div class="stat-sub">Connected nodes</div>
         </div>
-
-        <div class="info-row">
-          <div class="info-card">
-            <div class="info-card-title">Blockchain</div>
-            <div class="info-row-item"><span class="info-key">Network</span><span class="info-val green">mainnet</span></div>
-            <div class="info-row-item"><span class="info-key">Algorithm</span><span class="info-val">GoldPoW/Blake3</span></div>
-            <div class="info-row-item"><span class="info-key">Consensus</span><span class="info-val">PoW+BFT+Dilithium5</span></div>
-            <div class="info-row-item"><span class="info-key">Halvings done</span><span class="info-val" id="s-halvings">0</span></div>
-            <div class="info-row-item"><span class="info-key">Gold pegged</span><span class="info-val green">Yes</span></div>
-          </div>
-          <div class="info-card">
-            <div class="info-card-title">Genesis</div>
-            <div class="info-row-item"><span class="info-key">Hash</span><span class="info-val" id="s-genesis" style="font-size:9px;max-width:120px;overflow:hidden;text-overflow:ellipsis;">—</span></div>
-            <div class="info-row-item"><span class="info-key">Halving interval</span><span class="info-val">63M blocks</span></div>
-            <div class="info-row-item"><span class="info-key">Halving days</span><span class="info-val">2,187 days</span></div>
-            <div class="info-row-item"><span class="info-key">Next halving</span><span class="info-val" id="s-next-halving">—</span></div>
-            <div class="info-row-item"><span class="info-key">Finality</span><span class="info-val">3 seconds</span></div>
-          </div>
-          <div class="info-card">
-            <div class="info-card-title">My Wallet</div>
-            <div class="info-row-item"><span class="info-key">Username</span><span class="info-val" id="w-username">—</span></div>
-            <div class="info-row-item"><span class="info-key">GoGX Address</span><span class="info-val" id="w-address" style="font-size:9px;max-width:120px;overflow:hidden;text-overflow:ellipsis;">—</span></div>
-            <div class="info-row-item"><span class="info-key">Validator</span><span class="info-val" id="w-validator">—</span></div>
-            <div class="info-row-item"><span class="info-key">Node Status</span><span class="info-val green" id="w-status">Running</span></div>
-            <div class="info-row-item"><span class="info-key">Uptime</span><span class="info-val" id="w-uptime">—</span></div>
-          </div>
+        <div class="stat-card">
+          <div class="stat-label">Difficulty</div>
+          <div class="stat-value" id="stat-diff">—</div>
+          <div class="stat-sub">GoldPoW / Blake3</div>
         </div>
-
-        <div style="text-align:center;padding:8px 0 4px;font-size:11px;color:#222;">
-          Goldogram Full Node v1.0.0 · 1 GoGX = 1 gram of gold · Quantum-secure
+        <div class="stat-card">
+          <div class="stat-label">Network Hashrate</div>
+          <div class="stat-value" id="stat-hash">—</div>
+          <div class="stat-sub">MH/s</div>
         </div>
       </div>
+      <div style="padding:0 16px 8px;flex-shrink:0;">
+        <div class="section-title">Recent Logs</div>
+      </div>
+      <div class="log-container" id="dash-log"></div>
       <div class="controls">
-        <button class="btn btn-start" id="btn-start" onclick="startNode()">Start Node</button>
-        <button class="btn btn-stop" id="btn-stop" onclick="stopNode()" style="display:none">Stop Node</button>
-        <button class="btn btn-sec" onclick="clearLogs()">Clear Logs</button>
-        <span style="margin-left:auto;font-size:12px;color:#333;" id="uptime-text"></span>
+        <button class="btn btn-primary" id="btn-start" onclick="startNode()">Start Node</button>
+        <button class="btn btn-danger" id="btn-stop" onclick="stopNode()" style="display:none">Stop Node</button>
+        <button class="btn btn-secondary" onclick="clearLogs()">Clear Logs</button>
+        <span style="margin-left:auto;font-size:12px;color:#444;" id="uptime-text"></span>
       </div>
     </div>
 
-    <!-- Logs -->
+    <!-- Logs Panel -->
     <div class="panel" id="panel-logs">
-      <div style="padding:12px 16px 8px;flex-shrink:0;border-bottom:1px solid #12121e;">
-        <span style="font-size:11px;color:#444;text-transform:uppercase;letter-spacing:0.8px;font-weight:600;">Node Logs</span>
+      <div style="padding:16px 16px 8px;flex-shrink:0;">
+        <div class="section-title">Full Node Logs</div>
       </div>
       <div class="log-container" id="full-log"></div>
       <div class="controls">
-        <button class="btn btn-sec" onclick="clearLogs()">Clear</button>
-        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#444;cursor:pointer;">
+        <button class="btn btn-secondary" onclick="clearLogs()">Clear</button>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#666;cursor:pointer;">
           <input type="checkbox" id="auto-scroll" checked style="accent-color:#D4AF37;"> Auto-scroll
         </label>
       </div>
     </div>
 
-    <!-- Peers -->
+    <!-- Peers Panel -->
     <div class="panel" id="panel-peers">
-      <div style="padding:12px 16px 8px;flex-shrink:0;border-bottom:1px solid #12121e;">
-        <span style="font-size:11px;color:#444;text-transform:uppercase;letter-spacing:0.8px;font-weight:600;">Connected Peers</span>
+      <div style="padding:16px 16px 8px;flex-shrink:0;">
+        <div class="section-title">Connected Peers</div>
       </div>
-      <div class="peers-scroll" id="peers-list">
-        <div style="text-align:center;padding:40px;color:#333;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:36px;height:36px;margin-bottom:8px;opacity:0.3;"><circle cx="17" cy="7" r="3"/><circle cx="7" cy="17" r="3"/><path d="M14 14l-4-4"/><circle cx="7" cy="7" r="3"/><circle cx="17" cy="17" r="3"/></svg>
-          <div>No peers connected</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Validator -->
-    <div class="panel" id="panel-validator">
-      <div class="val-scroll">
-        <div class="val-card">
-          <div class="val-card-title">Bootstrap Program Stats</div>
-          <div class="val-stats">
-            <div class="val-stat"><div class="val-stat-label">Slots Remaining</div><div class="val-stat-value" id="bs-slots">—</div></div>
-            <div class="val-stat"><div class="val-stat-label">Active Validators</div><div class="val-stat-value" id="bs-active">—</div></div>
-            <div class="val-stat"><div class="val-stat-label">Stake Required</div><div class="val-stat-value" style="color:#4ade80;">Free</div></div>
-            <div class="val-stat"><div class="val-stat-label">Lock Period</div><div class="val-stat-value" style="color:#60a5fa;">365 days</div></div>
-          </div>
-          <div class="val-info-box">
-            ⚡ Join the Validator Bootstrap Program for free. Your first 10,000 GoGX earned from block rewards will be locked for 1 year. All rewards above that are yours immediately. You earn 40% of all block rewards.
-          </div>
-        </div>
-
-        <div class="val-card">
-          <div class="val-card-title">Login to Goldogram</div>
-          <input id="login-username" class="val-input" placeholder="Username"/>
-          <div style="position:relative;">
-            <input id="login-password" class="val-input" type="password" placeholder="Password" style="margin-bottom:6px;"/>
-            <button class="show-pw-btn" onclick="togglePw('login-password',this)" style="position:absolute;right:12px;top:12px;">Show</button>
-          </div>
-          <button class="val-btn-gold" onclick="loginAndGetToken()">Login → Auto-fill Token</button>
-          <div id="login-msg" style="font-size:11px;text-align:center;margin-top:6px;min-height:18px;"></div>
-        </div>
-
-        <div class="val-card">
-          <div class="val-card-title">Become a Validator</div>
-          <label style="font-size:11px;color:#444;display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">GoGX Address</label>
-          <input id="validator-address" class="val-input" placeholder="GoXXX..." style="font-family:monospace;font-size:12px;"/>
-          <label style="font-size:11px;color:#444;display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Auth Token</label>
-          <input id="validator-token" class="val-input" type="password" placeholder="eyJ..."/>
-          <button class="val-btn-gold" onclick="joinBootstrap()">Become Validator — Join Bootstrap Program</button>
-          <div id="validator-msg" style="font-size:12px;text-align:center;margin-top:8px;min-height:18px;"></div>
-        </div>
-
-        <div class="val-card">
-          <div class="val-card-title">Validator Status</div>
-          <button class="val-btn-dark" onclick="checkValidatorStatus()" style="margin-bottom:10px;">Check My Validator Status</button>
-          <div id="validator-status" style="font-size:12px;color:#444;text-align:center;">Login above then check status.</div>
+      <div class="peers-list" id="peers-list">
+        <div class="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="17" cy="7" r="3"/><circle cx="7" cy="17" r="3"/><path d="M14 14l-4-4"/><circle cx="7" cy="7" r="3"/><circle cx="17" cy="17" r="3"/></svg>
+          <span>No peers connected</span>
+          <span style="font-size:11px;">Start the node to connect</span>
         </div>
       </div>
     </div>
 
-    <!-- Node Info -->
+    <!-- Node Info Panel -->
     <div class="panel" id="panel-info">
-      <div style="flex:1;overflow-y:auto;padding:16px;">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-          <div class="info-card">
-            <div class="info-card-title">Blockchain</div>
-            <div class="info-row-item"><span class="info-key">Algorithm</span><span class="info-val">GoldPoW / Blake3</span></div>
-            <div class="info-row-item"><span class="info-key">Block Time</span><span class="info-val">3 seconds</span></div>
-            <div class="info-row-item"><span class="info-key">Consensus</span><span class="info-val">PoW + BFT</span></div>
-            <div class="info-row-item"><span class="info-key">Signatures</span><span class="info-val">Dilithium5</span></div>
-            <div class="info-row-item"><span class="info-key">Total Supply</span><span class="info-val">400B GoGX</span></div>
-            <div class="info-row-item"><span class="info-key">1 GoGX</span><span class="info-val green">= 1g Gold</span></div>
-          </div>
-          <div class="info-card">
-            <div class="info-card-title">System</div>
-            <div class="info-row-item"><span class="info-key">Platform</span><span class="info-val" id="sys-platform">—</span></div>
-            <div class="info-row-item"><span class="info-key">Architecture</span><span class="info-val" id="sys-arch">—</span></div>
-            <div class="info-row-item"><span class="info-key">CPU Cores</span><span class="info-val" id="sys-cpus">—</span></div>
-            <div class="info-row-item"><span class="info-key">Total RAM</span><span class="info-val" id="sys-ram">—</span></div>
-            <div class="info-row-item"><span class="info-key">Free RAM</span><span class="info-val" id="sys-free">—</span></div>
-            <div class="info-row-item"><span class="info-key">Node Version</span><span class="info-val">1.0.0</span></div>
-          </div>
-          <div class="info-card">
-            <div class="info-card-title">Network</div>
-            <div class="info-row-item"><span class="info-key">API Port</span><span class="info-val">8080</span></div>
-            <div class="info-row-item"><span class="info-key">P2P Port</span><span class="info-val">30303</span></div>
-            <div class="info-row-item"><span class="info-key">Chain ID</span><span class="info-val">GOGX-1</span></div>
-            <div class="info-row-item"><span class="info-key">Network</span><span class="info-val green">mainnet</span></div>
-          </div>
-          <div class="info-card">
-            <div class="info-card-title">Security</div>
-            <div class="info-row-item"><span class="info-key">Quantum Safe</span><span class="info-val green">Yes</span></div>
-            <div class="info-row-item"><span class="info-key">Post-Quantum</span><span class="info-val">Dilithium5</span></div>
-            <div class="info-row-item"><span class="info-key">Hash Function</span><span class="info-val">Blake3</span></div>
-            <div class="info-row-item"><span class="info-key">Encryption</span><span class="info-val">X25519+AES</span></div>
-          </div>
+      <div class="node-info">
+        <div class="info-card">
+          <div class="info-card-title">Blockchain</div>
+          <div class="info-row"><span class="info-key">Algorithm</span><span class="info-val">GoldPoW / Blake3</span></div>
+          <div class="info-row"><span class="info-key">Block Time</span><span class="info-val">3 seconds</span></div>
+          <div class="info-row"><span class="info-key">Consensus</span><span class="info-val">PoW + BFT</span></div>
+          <div class="info-row"><span class="info-key">Signatures</span><span class="info-val">Dilithium5</span></div>
+          <div class="info-row"><span class="info-key">Total Supply</span><span class="info-val">400B GoGX</span></div>
+          <div class="info-row"><span class="info-key">1 GoGX</span><span class="info-val">= 1g Gold</span></div>
+        </div>
+        <div class="info-card">
+          <div class="info-card-title">System</div>
+          <div class="info-row"><span class="info-key">Platform</span><span class="info-val" id="sys-platform">—</span></div>
+          <div class="info-row"><span class="info-key">Architecture</span><span class="info-val" id="sys-arch">—</span></div>
+          <div class="info-row"><span class="info-key">CPU Cores</span><span class="info-val" id="sys-cpus">—</span></div>
+          <div class="info-row"><span class="info-key">Total RAM</span><span class="info-val" id="sys-ram">—</span></div>
+          <div class="info-row"><span class="info-key">Free RAM</span><span class="info-val" id="sys-free">—</span></div>
+          <div class="info-row"><span class="info-key">Node Version</span><span class="info-val">1.0.0</span></div>
+        </div>
+        <div class="info-card">
+          <div class="info-card-title">Network</div>
+          <div class="info-row"><span class="info-key">API Port</span><span class="info-val">8080</span></div>
+          <div class="info-row"><span class="info-key">P2P Port</span><span class="info-val">30303</span></div>
+          <div class="info-row"><span class="info-key">Chain ID</span><span class="info-val">GOGX-1</span></div>
+          <div class="info-row"><span class="info-key">Node Status</span><span id="node-status-badge"><span class="badge badge-red">Stopped</span></span></div>
+        </div>
+        <div class="info-card">
+          <div class="info-card-title">Security</div>
+          <div class="info-row"><span class="info-key">Quantum Safe</span><span class="info-val" style="color:#4ade80;">Yes</span></div>
+          <div class="info-row"><span class="info-key">Post-Quantum</span><span class="info-val">Dilithium5</span></div>
+          <div class="info-row"><span class="info-key">Hash Function</span><span class="info-val">Blake3</span></div>
+          <div class="info-row"><span class="info-key">Encryption</span><span class="info-val">X25519 + AES</span></div>
         </div>
       </div>
     </div>
 
-    <!-- Config -->
+    <!-- Config Panel -->
     <div class="panel" id="panel-config">
-      <div style="flex:1;overflow-y:auto;padding:16px;">
-        <div class="val-card">
-          <div class="val-card-title">Node Configuration</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-            <div>
-              <label style="font-size:11px;color:#444;display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Node URL</label>
-              <input class="val-input" id="cfg-url" value="https://goldminequant.org"/>
-            </div>
-            <div>
-              <label style="font-size:11px;color:#444;display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Data Directory</label>
-              <input class="val-input" id="cfg-datadir" placeholder="~/.goldogram"/>
-            </div>
-            <div>
-              <label style="font-size:11px;color:#444;display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">API Port</label>
-              <input class="val-input" id="cfg-port" value="8080" type="number"/>
-            </div>
-            <div>
-              <label style="font-size:11px;color:#444;display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Max Peers</label>
-              <input class="val-input" id="cfg-peers" value="25" type="number"/>
-            </div>
+      <div class="config-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Node URL</label>
+            <input class="form-input" id="cfg-url" value="https://goldminequant.org" placeholder="https://goldminequant.org"/>
           </div>
-          <div style="margin-top:12px;">
-            <label style="font-size:11px;color:#444;display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Bootstrap Peers</label>
-            <textarea class="val-input" id="cfg-bootstrap" rows="3" style="resize:vertical;">goldminequant.org:30303</textarea>
+          <div class="form-group">
+            <label class="form-label">Data Directory</label>
+            <input class="form-input" id="cfg-datadir" placeholder="~/.goldogram" value=""/>
           </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">API Port</label>
+            <input class="form-input" id="cfg-port" value="8080" type="number"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Max Peers</label>
+            <input class="form-input" id="cfg-peers" value="25" type="number"/>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Bootstrap Peers (one per line)</label>
+          <textarea class="form-input" id="cfg-bootstrap" rows="4" style="resize:vertical;">goldminequant.org:30303</textarea>
         </div>
       </div>
       <div class="controls">
-        <button class="btn btn-start" onclick="saveConfig()">Save Config</button>
-        <button class="btn btn-sec" onclick="resetConfig()">Reset Defaults</button>
+        <button class="btn btn-primary" onclick="saveConfig()">Save Config</button>
+        <button class="btn btn-secondary" onclick="resetConfig()">Reset Defaults</button>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-mining">
+      <div style="padding:20px;overflow-y:auto;flex:1;">
+        <div style="font-size:16px;font-weight:600;color:#D4AF37;margin-bottom:16px;">⛏️ Miner</div>
+
+        <!-- Sync Status -->
+        <div id="mining-sync-banner" style="background:#1a1400;border:1px solid #2a2000;border-radius:8px;padding:12px 16px;margin-bottom:16px;display:none;">
+          <div style="font-size:12px;color:#D4AF37;font-weight:600;margin-bottom:6px;">⏳ Syncing blockchain before mining...</div>
+          <div style="background:#0d0d0d;border-radius:4px;height:6px;overflow:hidden;">
+            <div id="mining-sync-bar" style="height:100%;background:#D4AF37;width:0%;transition:width 0.5s;"></div>
+          </div>
+          <div id="mining-sync-text" style="font-size:11px;color:#666;margin-top:6px;">0 / 0 blocks</div>
+        </div>
+
+        <!-- Miner Config -->
+        <div style="background:#0d0d0d;border:1px solid #1a1a1a;border-radius:8px;padding:16px;margin-bottom:16px;">
+          <div style="font-size:12px;color:#555;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">Configuration</div>
+          <label style="font-size:12px;color:#666;display:block;margin-bottom:4px;">Mining Address (GoGX)</label>
+          <input id="miner-address" placeholder="GoXXX..." style="width:100%;background:#080808;border:1px solid #1a1a1a;border-radius:6px;padding:8px 12px;color:#e8e0cc;font-size:12px;font-family:monospace;outline:none;box-sizing:border-box;margin-bottom:12px;"/>
+          <label style="font-size:12px;color:#666;display:block;margin-bottom:4px;">API Node</label>
+          <input id="miner-api-node" value="http://goldminequant.org" style="width:100%;background:#080808;border:1px solid #1a1a1a;border-radius:6px;padding:8px 12px;color:#e8e0cc;font-size:12px;font-family:monospace;outline:none;box-sizing:border-box;"/>
+        </div>
+
+        <!-- Miner Stats -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+          <div style="background:#0d0d0d;border:1px solid #1a1a1a;border-radius:8px;padding:12px;text-align:center;">
+            <div id="miner-stat-status" style="font-size:18px;font-weight:600;color:#555;">Stopped</div>
+            <div style="font-size:10px;color:#444;text-transform:uppercase;margin-top:4px;">Status</div>
+          </div>
+          <div style="background:#0d0d0d;border:1px solid #1a1a1a;border-radius:8px;padding:12px;text-align:center;">
+            <div id="miner-stat-blocks" style="font-size:18px;font-weight:600;color:#D4AF37;">0</div>
+            <div style="font-size:10px;color:#444;text-transform:uppercase;margin-top:4px;">Blocks Found</div>
+          </div>
+          <div style="background:#0d0d0d;border:1px solid #1a1a1a;border-radius:8px;padding:12px;text-align:center;">
+            <div id="miner-stat-height" style="font-size:18px;font-weight:600;color:#D4AF37;">—</div>
+            <div style="font-size:10px;color:#444;text-transform:uppercase;margin-top:4px;">Mining Height</div>
+          </div>
+          <div style="background:#0d0d0d;border:1px solid #1a1a1a;border-radius:8px;padding:12px;text-align:center;">
+            <div id="miner-stat-reward" style="font-size:18px;font-weight:600;color:#D4AF37;">0</div>
+            <div style="font-size:10px;color:#444;text-transform:uppercase;margin-top:4px;">GoGX Earned</div>
+          </div>
+        </div>
+
+        <!-- Controls -->
+        <div style="display:flex;gap:10px;margin-bottom:16px;">
+          <button onclick="startMiner()" id="btn-start-miner" style="flex:1;padding:10px;background:#D4AF37;color:#000;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">▶ Start Mining</button>
+          <button onclick="stopMiner()" id="btn-stop-miner" style="flex:1;padding:10px;background:#1a1a1a;color:#666;border:1px solid #2a2a2a;border-radius:6px;font-size:13px;cursor:pointer;" disabled>⏹ Stop</button>
+        </div>
+
+        <!-- Miner Logs -->
+        <div style="background:#080808;border:1px solid #1a1a1a;border-radius:8px;padding:12px;">
+          <div style="font-size:11px;color:#555;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Miner Logs</div>
+          <div id="miner-logs" style="font-family:monospace;font-size:11px;color:#666;height:200px;overflow-y:auto;line-height:1.6;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-validator">
+      <div style="flex:1;overflow-y:auto;padding:16px;">
+
+        <!-- Bootstrap Stats -->
+        <div style="background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:16px;margin-bottom:12px;">
+          <div style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">Bootstrap Program Stats</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+            <div style="background:#0d0d0d;border-radius:6px;padding:10px;"><div style="font-size:10px;color:#444;margin-bottom:4px;text-transform:uppercase;">Slots Remaining</div><div style="font-size:18px;font-weight:600;color:#D4AF37;" id="bs-slots">—</div></div>
+            <div style="background:#0d0d0d;border-radius:6px;padding:10px;"><div style="font-size:10px;color:#444;margin-bottom:4px;text-transform:uppercase;">Active Validators</div><div style="font-size:18px;font-weight:600;color:#D4AF37;" id="bs-active">—</div></div>
+            <div style="background:#0d0d0d;border-radius:6px;padding:10px;"><div style="font-size:10px;color:#444;margin-bottom:4px;text-transform:uppercase;">Stake Required</div><div style="font-size:18px;font-weight:600;color:#4ade80;">10,000 GoGX</div></div>
+            <div style="background:#0d0d0d;border-radius:6px;padding:10px;"><div style="font-size:10px;color:#444;margin-bottom:4px;text-transform:uppercase;">Lock Period</div><div style="font-size:18px;font-weight:600;color:#60c8dc;">365 days</div></div>
+          </div>
+          <div style="background:#0a1a00;border:1px solid #1a3a00;border-radius:6px;padding:12px;font-size:12px;color:#4ade80;line-height:1.6;">
+            ⚡ Join the Validator Bootstrap Program. 10,000 GoGX allocated from Treasury, locked 1 year. Earn 40% of all block rewards immediately.
+          </div>
+        </div>
+
+        <!-- Login -->
+        <div style="background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:16px;margin-bottom:12px;">
+          <div style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">Login to Goldogram</div>
+          <input id="login-username" placeholder="Username" style="width:100%;background:#0d0d0d;border:1px solid #1a1a1a;border-radius:6px;padding:8px 12px;color:#e8e0cc;font-size:13px;outline:none;box-sizing:border-box;margin-bottom:8px;"/>
+          <input id="login-password" type="password" placeholder="Password" style="width:100%;background:#0d0d0d;border:1px solid #1a1a1a;border-radius:6px;padding:8px 12px;color:#e8e0cc;font-size:13px;outline:none;box-sizing:border-box;margin-bottom:8px;"/>
+          <button onclick="loginAndGetToken()" style="width:100%;padding:10px;background:#1a1200;color:#D4AF37;border:1px solid #2a2000;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;">Login → Auto-fill Token</button>
+          <div id="login-msg" style="margin-top:8px;font-size:11px;text-align:center;"></div>
+        </div>
+
+        <!-- Become Validator -->
+        <div style="background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:16px;margin-bottom:12px;">
+          <div style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">Become a Validator</div>
+          <label style="font-size:12px;color:#666;display:block;margin-bottom:6px;">Your GoGX Address</label>
+          <input id="validator-address" placeholder="GoXXX..." style="width:100%;background:#0d0d0d;border:1px solid #1a1a1a;border-radius:6px;padding:8px 12px;color:#e8e0cc;font-size:12px;font-family:monospace;outline:none;box-sizing:border-box;margin-bottom:8px;"/>
+          <label style="font-size:12px;color:#666;display:block;margin-bottom:6px;">Auth Token (JWT)</label>
+          <input id="validator-token" type="password" placeholder="eyJ..." style="width:100%;background:#0d0d0d;border:1px solid #1a1a1a;border-radius:6px;padding:8px 12px;color:#e8e0cc;font-size:13px;outline:none;box-sizing:border-box;margin-bottom:8px;"/>
+          <button onclick="joinBootstrap()" style="width:100%;padding:12px;background:linear-gradient(135deg,#D4AF37,#A67C00);color:#000;font-weight:700;font-size:14px;border:none;border-radius:8px;cursor:pointer;margin-bottom:6px;">Become Validator — Join Bootstrap Program</button>
+          <div id="validator-msg" style="font-size:12px;text-align:center;margin-top:8px;"></div>
+        </div>
+
+        <!-- Validator Status -->
+        <div style="background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:16px;">
+          <div style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">Validator Status</div>
+          <button onclick="checkValidatorStatus()" style="width:100%;padding:10px;background:#151515;color:#888;border:1px solid #222;border-radius:6px;cursor:pointer;font-size:13px;margin-bottom:10px;">Check My Validator Status</button>
+          <div id="validator-status" style="font-size:12px;color:#555;text-align:center;">Login above then check status.</div>
+        </div>
+
       </div>
     </div>
 
@@ -555,90 +404,97 @@ body{background:#060608;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
 </div>
 
 <script>
-const API = 'https://goldminequant.org';
 let running = false;
 let startTime = null;
 let statusInterval = null;
 let uptimeInterval = null;
-let setupToken = '';
-let setupAddress = '';
-let setupUsername = '';
+let logLines = [];
 
-function showPanel(name, el) {
+function showPanel(name) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('panel-' + name).classList.add('active');
-  if (el) el.classList.add('active');
+  event.currentTarget.classList.add('active');
 }
 
-function togglePw(id, btn) {
-  const inp = document.getElementById(id);
-  if (inp.type === 'password') { inp.type = 'text'; btn.textContent = 'Hide'; }
-  else { inp.type = 'password'; btn.textContent = 'Show'; }
+function addLog(line, type = 'info') {
+  const time = new Date().toLocaleTimeString('en-GB', {hour12: false});
+  const entry = {line, type, time};
+  logLines.push(entry);
+  if (logLines.length > 500) logLines.shift();
+  appendLogEl('dash-log', entry, 100);
+  appendLogEl('full-log', entry, 500);
 }
 
-function addLog(line, type) {
-  type = type || 'info';
-  const time = new Date().toLocaleTimeString('en-GB', {hour12:false});
-  const c = document.getElementById('full-log');
-  if (!c) return;
+function appendLogEl(containerId, entry, max) {
+  const container = document.getElementById(containerId);
   const el = document.createElement('div');
-  el.className = 'log-line ' + type;
-  el.innerHTML = '<span class="log-time">' + time + '</span>' + (line+'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
-  c.appendChild(el);
-  while (c.children.length > 500) c.removeChild(c.firstChild);
-  const as = document.getElementById('auto-scroll');
-  if (!as || as.checked) c.scrollTop = c.scrollHeight;
+  el.className = 'log-line ' + entry.type;
+  el.innerHTML = '<span class="log-time">' + entry.time + '</span>' + escHtml(entry.line);
+  container.appendChild(el);
+  while (container.children.length > max) container.removeChild(container.firstChild);
+  const autoScroll = document.getElementById('auto-scroll');
+  if (!autoScroll || autoScroll.checked) container.scrollTop = container.scrollHeight;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
 function clearLogs() {
-  const c = document.getElementById('full-log');
-  if (c) c.innerHTML = '';
+  logLines = [];
+  document.getElementById('dash-log').innerHTML = '';
+  document.getElementById('full-log').innerHTML = '';
 }
 
 function setRunning(val) {
   running = val;
   const dot = document.getElementById('status-dot');
   const txt = document.getElementById('status-text');
-  const pill = document.getElementById('status-pill');
-  const bs = document.getElementById('btn-start');
-  const bp = document.getElementById('btn-stop');
-  const ws = document.getElementById('w-status');
+  const btnStart = document.getElementById('btn-start');
+  const btnStop = document.getElementById('btn-stop');
+  const badge = document.getElementById('node-status-badge');
   if (val) {
-    dot.className = 'status-dot'; pill.className = 'status-pill';
+    dot.className = 'status-dot running';
     txt.textContent = 'Running';
-    bs.style.display = 'none'; bp.style.display = '';
-    if (ws) { ws.textContent = 'Running'; ws.className = 'info-val green'; }
+    btnStart.style.display = 'none';
+    btnStop.style.display = '';
+    badge.innerHTML = '<span class="badge badge-green">Running</span>';
     startTime = Date.now();
     uptimeInterval = setInterval(updateUptime, 1000);
   } else {
-    dot.className = 'status-dot stopped'; pill.className = 'status-pill stopped';
+    dot.className = 'status-dot';
     txt.textContent = 'Stopped';
-    bs.style.display = ''; bp.style.display = 'none';
-    if (ws) { ws.textContent = 'Stopped'; ws.className = 'info-val'; }
+    btnStart.style.display = '';
+    btnStop.style.display = 'none';
+    badge.innerHTML = '<span class="badge badge-red">Stopped</span>';
     startTime = null;
     clearInterval(uptimeInterval);
     document.getElementById('uptime-text').textContent = '';
     clearInterval(statusInterval);
+    document.getElementById('stat-height').textContent = '—';
+    document.getElementById('stat-peers').textContent = '—';
+    document.getElementById('stat-diff').textContent = '—';
+    document.getElementById('stat-hash').textContent = '—';
   }
 }
 
 function updateUptime() {
   if (!startTime) return;
   const s = Math.floor((Date.now() - startTime) / 1000);
-  const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
-  const str = (h?h+'h ':'')+m+'m '+sec+'s';
-  document.getElementById('uptime-text').textContent = 'Uptime: ' + str;
-  const wu = document.getElementById('w-uptime');
-  if (wu) wu.textContent = str;
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  document.getElementById('uptime-text').textContent =
+    'Uptime: ' + (h ? h + 'h ' : '') + m + 'm ' + sec + 's';
 }
 
 async function startNode() {
   const url = document.getElementById('cfg-url').value;
   const datadir = document.getElementById('cfg-datadir').value;
   addLog('Starting Goldogram Full Node...', 'info');
-  const res = await window.node?.start({url, datadir});
-  if (res && res.error) { addLog('Error: ' + res.error, 'error'); return; }
+  const res = await window.node?.start({ url, datadir });
+  if (res?.error) { addLog('Error: ' + res.error, 'error'); return; }
   setRunning(true);
   addLog('Node started. Connecting to network...', 'success');
   statusInterval = setInterval(fetchStatus, 3000);
@@ -651,57 +507,21 @@ async function stopNode() {
   addLog('Node stopped.', 'warn');
 }
 
-function fmt(n) { return Number(n).toLocaleString(); }
-
 async function fetchStatus() {
-  try {
-    const res = await fetch(API + '/api/status');
-    const d = await res.json();
-    // Stats cards
-    const price = (d.gold_price_usd || 0).toFixed(4);
-    setText('s-price', '$' + price);
-    setText('s-height', fmt(d.height));
-    setText('s-tip', 'tip: ' + (d.tip_hash||'').slice(0,12) + '...');
-    setText('s-hash', d.network_hashrate || '—');
-    setText('s-diff', d.difficulty || '—');
-    setText('s-reward', (d.current_reward_gog||0).toLocaleString() + ' GoGX');
-    setText('s-validators', d.active_validators || '—');
-    setText('s-nodes', d.live_full_nodes || '—');
-    setText('s-halving', fmt(d.blocks_until_halving));
-    setText('s-mempool', d.mempool_size || '0');
-    setText('s-stake', fmt((d.total_stake||0)/1e6) + ' GoGX');
-    setText('s-halvings', d.halvings_done || '0');
-    setText('s-genesis', d.genesis_hash || '—');
-    setText('s-next-halving', 'Block ' + fmt(d.next_halving_at_block));
-    // Rewards
-    const br = d.block_reward || {};
-    setText('r-pow', ((br.pow||0)/1e6).toFixed(1));
-    setText('r-pos', ((br.pos||0)/1e6).toFixed(1));
-    setText('r-poe', ((br.poe||0)/1e6).toFixed(1));
-    // Ticker
-    setText('tk-price', '$' + price);
-    setText('tk-height', fmt(d.height));
-    setText('tk-reward', (d.current_reward_gog||0) + ' GoGX');
-    setText('tk-hash', d.network_hashrate || '—');
-    setText('tk-nodes', d.live_full_nodes || '—');
-    setText('dd-height', fmt(d.height));
-    setText('dd-price', '$' + (d.gold_price_usd||0).toFixed(4));
-    setText('dd-nodes', d.live_full_nodes || '—');
-    setText('dd-validators', d.active_validators || '—');
-    setText('tk-validators', d.active_validators || '—');
-    setText('tk-mempool', (d.mempool_size||0) + ' tx');
-    // Peers badge
-    const pb = document.getElementById('peers-badge');
-    if (pb) pb.textContent = d.peer_count || '0';
-  } catch(e) {}
+  const res = await window.node?.getStatus();
+  if (!res?.ok) return;
+  const d = res.data;
+  document.getElementById('stat-height').textContent = (d.height || 0).toLocaleString();
+  document.getElementById('stat-peers').textContent = d.peers ?? d.connected_peers ?? '0';
+  document.getElementById('stat-diff').textContent = d.difficulty ?? '—';
+  const hr = d.network_hashrate ?? d.hashrate ?? 0;
+  document.getElementById('stat-hash').textContent = hr > 1e6 ? (hr/1e6).toFixed(2) + 'M' : hr.toLocaleString();
 }
 
-function setText(id, val) {
-  const el = document.getElementById(id);
-  if (el) el.textContent = val;
+function saveConfig() {
+  addLog('Configuration saved.', 'success');
 }
 
-function saveConfig() { addLog('Configuration saved.', 'success'); }
 function resetConfig() {
   document.getElementById('cfg-url').value = 'https://goldminequant.org';
   document.getElementById('cfg-port').value = '8080';
@@ -713,14 +533,118 @@ function resetConfig() {
 async function loadSysinfo() {
   const info = await window.node?.getSysinfo();
   if (!info) return;
-  setText('sys-platform', info.platform);
-  setText('sys-arch', info.arch);
-  setText('sys-cpus', info.cpus);
-  setText('sys-ram', (info.totalMem/1e9).toFixed(1) + ' GB');
-  setText('sys-free', (info.freeMem/1e9).toFixed(1) + ' GB');
+  document.getElementById('sys-platform').textContent = info.platform;
+  document.getElementById('sys-arch').textContent = info.arch;
+  document.getElementById('sys-cpus').textContent = info.cpus;
+  document.getElementById('sys-ram').textContent = (info.totalMem / 1e9).toFixed(1) + ' GB';
+  document.getElementById('sys-free').textContent = (info.freeMem / 1e9).toFixed(1) + ' GB';
 }
 
-// Setup wizard
+if (window.node) {
+  window.node.onLog((msg) => {
+    const type = msg.type === 'stderr' ? 'error' : 'info';
+    const line = msg.line || '';
+    const t = line.toLowerCase().includes('error') ? 'error'
+      : line.toLowerCase().includes('warn') ? 'warn'
+      : line.toLowerCase().includes('block') || line.toLowerCase().includes('accept') ? 'success'
+      : 'info';
+    addLog(line, t);
+  });
+  window.node.onStopped((msg) => {
+    setRunning(false);
+    addLog('Node process exited (code ' + (msg.code ?? '?') + ')', msg.code === 0 ? 'info' : 'error');
+  });
+  loadSysinfo();
+}
+
+addLog('Goldogram Full Node v1.0.0 ready.', 'success');
+addLog('1 GoGX = 1 gram of gold. Quantum-secure.', 'info');
+
+const API = 'https://goldminequant.org';
+
+async function loginAndGetToken() {
+  const username = document.getElementById('login-username').value.trim();
+  const password = document.getElementById('login-password').value.trim();
+  const msg = document.getElementById('login-msg');
+  if (!username || !password) { msg.style.color='#f87171'; msg.textContent='Enter username and password.'; return; }
+  msg.style.color='#D4AF37'; msg.textContent='Logging in...';
+  try {
+    const res = await fetch(API + '/api/auth/login', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({username, password})
+    });
+    const data = await res.json();
+    if (data.token) {
+      document.getElementById('validator-token').value = data.token;
+      if (data.wallet && data.wallet.gog_address) {
+        document.getElementById('validator-address').value = data.wallet.gog_address;
+      }
+      msg.style.color='#4ade80'; msg.textContent='✅ Logged in! Token and address filled automatically.';
+    } else {
+      msg.style.color='#f87171'; msg.textContent='❌ ' + (data.error || 'Login failed');
+    }
+  } catch(e) { msg.style.color='#f87171'; msg.textContent='❌ ' + e.message; }
+}
+
+async function joinBootstrap() {
+  const token = document.getElementById('validator-token').value.trim();
+  const msg = document.getElementById('validator-msg');
+  if (!token) { msg.style.color='#f87171'; msg.textContent='Login first to get your token.'; return; }
+  msg.style.color='#D4AF37'; msg.textContent='Joining bootstrap program...';
+  try {
+    const res = await fetch(API + '/api/validator/join', {
+      method: 'POST',
+      headers: {'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json'}
+    });
+    const data = await res.json();
+    if (data.ok) {
+      msg.style.color='#4ade80'; msg.textContent='✅ ' + data.message;
+      loadBootstrapStats();
+    } else {
+      msg.style.color='#f87171'; msg.textContent='❌ ' + (data.error || 'Failed');
+    }
+  } catch(e) { msg.style.color='#f87171'; msg.textContent='❌ ' + e.message; }
+}
+
+async function checkValidatorStatus() {
+  const token = document.getElementById('validator-token').value.trim();
+  const statusEl = document.getElementById('validator-status');
+  if (!token) { statusEl.textContent='Login first.'; return; }
+  try {
+    const res = await fetch(API + '/api/validator/status', {
+      headers: {'Authorization': 'Bearer ' + token}
+    });
+    const data = await res.json();
+    if (data.is_validator) {
+      statusEl.innerHTML = '<span style="color:#4ade80">✅ Active Validator</span><br>' +
+        '<span style="color:#D4AF37">Stake: ' + (data.stake_gog||10000).toLocaleString() + ' GoGX</span><br>' +
+        '<span style="color:#666">Days remaining: ' + data.days_remaining + '</span><br>' +
+        '<span style="color:#666">Unlock at block: ' + (data.unlock_height||0).toLocaleString() + '</span>';
+    } else {
+      statusEl.innerHTML = '<span style="color:#888">Not a validator yet. Join the bootstrap program above.</span>';
+    }
+  } catch(e) { statusEl.textContent='Error: ' + e.message; }
+}
+
+async function loadBootstrapStats() {
+  try {
+    const res = await fetch(API + '/api/validator/bootstrap/stats');
+    const data = await res.json();
+    const s = document.getElementById('bs-slots');
+    const a = document.getElementById('bs-active');
+    if (s) s.textContent = data.slots_remaining ?? '—';
+    if (a) a.textContent = data.active_bootstrap_validators ?? '—';
+  } catch(e) {}
+}
+
+loadBootstrapStats();
+setInterval(loadBootstrapStats, 30000);
+
+let setupToken = '';
+let setupAddress = '';
+let setupUsername = '';
+
 async function setupLogin() {
   const username = document.getElementById('setup-username').value.trim();
   const password = document.getElementById('setup-password').value.trim();
@@ -728,20 +652,21 @@ async function setupLogin() {
   if (!username || !password) { msg.style.color='#f87171'; msg.textContent='Enter username and password.'; return; }
   msg.style.color='#D4AF37'; msg.textContent='Logging in...';
   try {
-    const res = await fetch(API + '/api/auth/login', {
-      method:'POST', headers:{'Content-Type':'application/json'},
+    const res = await fetch('https://goldminequant.org/api/auth/login', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({username, password})
     });
     const data = await res.json();
     if (data.token) {
       setupToken = data.token;
-      setupAddress = data.wallet?.gog_address || '';
-      setupUsername = data.user?.username || username;
-      setText('setup-username-display', setupUsername);
-      setText('setup-address-display', setupAddress);
-      if (document.getElementById('validator-token')) document.getElementById('validator-token').value = setupToken;
-      if (document.getElementById('validator-address')) document.getElementById('validator-address').value = setupAddress;
-      if (document.getElementById('login-username')) document.getElementById('login-username').value = username;
+      setupAddress = data.wallet && data.wallet.gog_address ? data.wallet.gog_address : '';
+      setupUsername = data.user && data.user.username ? data.user.username : username;
+      document.getElementById('setup-username-display').textContent = setupUsername;
+      document.getElementById('setup-address-display').textContent = setupAddress;
+      document.getElementById('validator-token').value = setupToken;
+      document.getElementById('validator-address').value = setupAddress;
+      document.getElementById('login-username').value = username;
       document.getElementById('setup-step-login').style.display = 'none';
       document.getElementById('setup-step-welcome').style.display = 'block';
       msg.textContent = '';
@@ -757,8 +682,9 @@ async function setupJoinValidator() {
   msg.style.color='#D4AF37'; msg.textContent='Joining bootstrap program...';
   btn.disabled = true;
   try {
-    const res = await fetch(API + '/api/validator/join', {
-      method:'POST', headers:{'Authorization':'Bearer '+setupToken,'Content-Type':'application/json'}
+    const res = await fetch('https://goldminequant.org/api/validator/join', {
+      method: 'POST',
+      headers: {'Authorization': 'Bearer ' + setupToken, 'Content-Type': 'application/json'}
     });
     const data = await res.json();
     if (data.ok) {
@@ -773,150 +699,109 @@ async function setupJoinValidator() {
 
 function setupSkip() {
   document.getElementById('setup-overlay').style.display = 'none';
-  // Save session
-  try {
-    localStorage.setItem('gn_token', setupToken);
-    localStorage.setItem('gn_username', setupUsername);
-    localStorage.setItem('gn_address', setupAddress);
-  } catch(e) {}
-  // Update UI with user info
-  if (setupUsername) {
-    const tbUser = document.getElementById('tb-user');
-    if (tbUser) tbUser.style.display = 'flex';
-    setText('tb-username', setupUsername);
-    setText('tb-address', setupAddress);
-    const av = document.getElementById('tb-avatar');
-    if (av) av.textContent = setupUsername.charAt(0).toUpperCase();
-    setText('w-username', setupUsername);
-    setText('dd-username', setupUsername);
-    setText('dd-address', setupAddress);
-    setText('w-address', setupAddress);
-    const wv = document.getElementById('w-validator');
-    if (wv) { wv.textContent = 'Checking...'; }
+}
+
+// ── MINER ────────────────────────────────────────────────
+let minerRunning = false;
+let minerBlocksFound = 0;
+let minerGoGXEarned = 0;
+
+async function startMiner() {
+  const address = document.getElementById('miner-address').value.trim();
+  const apiNode = document.getElementById('miner-api-node').value.trim();
+  if (!address) { addMinerLog('⚠️ Enter your GoGX address first'); return; }
+
+  // Check if node is synced first
+  const status = await window.node.getStatus();
+  if (status.ok) {
+    const chainHeight = status.data.height || 0;
+    const localHeight = parseInt(document.getElementById('miner-stat-height').textContent) || 0;
+    if (localHeight > 0 && localHeight < chainHeight - 10) {
+      addMinerLog('⏳ Waiting for sync to complete...');
+      showMinerSyncBanner(localHeight, chainHeight);
+      return;
+    }
   }
-  // Auto-start fetching status
-  fetchStatus();
-  setInterval(fetchStatus, 5000);
+
+  const result = await window.miner.start({ address, apiNode });
+  if (result.error) { addMinerLog('❌ ' + result.error); return; }
+
+  minerRunning = true;
+  document.getElementById('miner-stat-status').textContent = 'Mining';
+  document.getElementById('miner-stat-status').style.color = '#4ade80';
+  document.getElementById('btn-start-miner').disabled = true;
+  document.getElementById('btn-stop-miner').disabled = false;
+  document.getElementById('btn-stop-miner').style.color = '#fff';
+  addMinerLog('⛏️ Miner started — address: ' + address.slice(0, 14) + '...');
 }
 
-// Validator panel functions
-async function loginAndGetToken() {
-  const username = document.getElementById('login-username').value.trim();
-  const password = document.getElementById('login-password').value.trim();
-  const msg = document.getElementById('login-msg');
-  if (!username || !password) { msg.style.color='#f87171'; msg.textContent='Enter username and password.'; return; }
-  msg.style.color='#D4AF37'; msg.textContent='Logging in...';
-  try {
-    const res = await fetch(API + '/api/auth/login', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({username, password})
-    });
-    const data = await res.json();
-    if (data.token) {
-      document.getElementById('validator-token').value = data.token;
-      if (data.wallet?.gog_address) document.getElementById('validator-address').value = data.wallet.gog_address;
-      msg.style.color='#4ade80'; msg.textContent='✅ Logged in! Token and address filled.';
-    } else {
-      msg.style.color='#f87171'; msg.textContent='❌ ' + (data.error || 'Login failed');
-    }
-  } catch(e) { msg.style.color='#f87171'; msg.textContent='❌ ' + e.message; }
+async function stopMiner() {
+  await window.miner.stop();
+  minerRunning = false;
+  document.getElementById('miner-stat-status').textContent = 'Stopped';
+  document.getElementById('miner-stat-status').style.color = '#555';
+  document.getElementById('btn-start-miner').disabled = false;
+  document.getElementById('btn-stop-miner').disabled = true;
+  document.getElementById('btn-stop-miner').style.color = '#666';
+  addMinerLog('⏹ Miner stopped');
 }
 
-async function joinBootstrap() {
-  const token = document.getElementById('validator-token').value.trim();
-  const msg = document.getElementById('validator-msg');
-  if (!token) { msg.style.color='#f87171'; msg.textContent='Login first.'; return; }
-  msg.style.color='#D4AF37'; msg.textContent='Joining...';
-  try {
-    const res = await fetch(API + '/api/validator/join', {
-      method:'POST', headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'}
-    });
-    const data = await res.json();
-    if (data.ok) {
-      msg.style.color='#4ade80'; msg.textContent='✅ ' + data.message;
-      loadBootstrapStats();
-    } else {
-      msg.style.color='#f87171'; msg.textContent='❌ ' + (data.error || 'Failed');
-    }
-  } catch(e) { msg.style.color='#f87171'; msg.textContent='❌ ' + e.message; }
-}
+function addMinerLog(line) {
+  const el = document.getElementById('miner-logs');
+  if (!el) return;
+  const div = document.createElement('div');
+  const isBlock = line.includes('accepted') || line.includes('Block found');
+  div.style.color = isBlock ? '#D4AF37' : line.includes('❌') ? '#f87171' : '#666';
+  if (isBlock) div.style.fontWeight = '600';
+  div.textContent = '[' + new Date().toLocaleTimeString() + '] ' + line;
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+  if (el.children.length > 200) el.removeChild(el.firstChild);
 
-async function checkValidatorStatus() {
-  const token = document.getElementById('validator-token').value.trim();
-  const el = document.getElementById('validator-status');
-  if (!token) { el.textContent='Login first.'; return; }
-  try {
-    const res = await fetch(API + '/api/validator/status', {headers:{'Authorization':'Bearer '+token}});
-    const data = await res.json();
-    if (data.is_validator) {
-      el.innerHTML = '<span style="color:#4ade80">✅ Active Validator</span><br>' +
-        '<span style="color:#D4AF37">Stake: '+(data.stake_gog||10000).toLocaleString()+' GoGX</span><br>' +
-        '<span style="color:#555">Days remaining: '+data.days_remaining+'</span><br>' +
-        '<span style="color:#555">Unlock at block: '+(data.unlock_height||0).toLocaleString()+'</span>';
-      const wv = document.getElementById('w-validator');
-      if (wv) { wv.textContent = '✓ Active'; wv.className = 'info-val green'; }
-    } else {
-      el.innerHTML = '<span style="color:#555">Not a validator yet.</span>';
-    }
-  } catch(e) { el.textContent='Error: '+e.message; }
-}
-
-async function loadBootstrapStats() {
-  try {
-    const res = await fetch(API + '/api/validator/bootstrap/stats');
-    const data = await res.json();
-    setText('bs-slots', data.slots_remaining ?? '—');
-    setText('bs-active', data.active_bootstrap_validators ?? '—');
-    setText('dd-slots', (data.slots_remaining ?? '—') + '/100');
-  } catch(e) {}
-}
-
-// Init
-if (window.node) {
-  window.node.onLog(function(msg) {
-    const line = msg.line || '';
-    const t = line.toLowerCase().includes('error')?'error':line.toLowerCase().includes('warn')?'warn':line.toLowerCase().includes('block')||line.toLowerCase().includes('accept')?'success':'info';
-    addLog(line, t);
-  });
-  window.node.onStopped(function(msg) {
-    setRunning(false);
-    addLog('Node process exited (code '+(msg.code||'?')+')', msg.code===0?'info':'error');
-  });
-  loadSysinfo();
-}
-
-// Auto-login from saved session
-try {
-  const savedToken = localStorage.getItem('gn_token');
-  const savedUsername = localStorage.getItem('gn_username');
-  const savedAddress = localStorage.getItem('gn_address');
-  if (savedToken && savedUsername) {
-    setupToken = savedToken;
-    setupUsername = savedUsername;
-    setupAddress = savedAddress || '';
-    document.getElementById('setup-overlay').style.display = 'none';
-    const tbUser = document.getElementById('tb-user');
-    if (tbUser) tbUser.style.display = 'flex';
-    setText('tb-username', savedUsername);
-    setText('tb-address', savedAddress);
-    const av = document.getElementById('tb-avatar');
-    if (av) av.textContent = savedUsername.charAt(0).toUpperCase();
-    setText('w-username', savedUsername);
-    setText('w-address', savedAddress);
-    setText('dd-username', savedUsername);
-    setText('dd-address', savedAddress);
-    if (document.getElementById('validator-token')) document.getElementById('validator-token').value = savedToken;
-    if (document.getElementById('validator-address')) document.getElementById('validator-address').value = savedAddress;
-    addLog('Auto-login: ' + savedUsername, 'success');
+  // Parse mining stats from logs
+  const heightMatch = line.match(/Mining block (\d+)/);
+  if (heightMatch) {
+    document.getElementById('miner-stat-height').textContent = heightMatch[1];
   }
-} catch(e) {}
+  if (line.includes('accepted')) {
+    minerBlocksFound++;
+    document.getElementById('miner-stat-blocks').textContent = minerBlocksFound;
+    const rewardMatch = line.match(/reward:(\d+)/);
+    if (rewardMatch) {
+      minerGoGXEarned += parseInt(rewardMatch[1]) / 1e6;
+      document.getElementById('miner-stat-reward').textContent = minerGoGXEarned.toFixed(2);
+    }
+  }
+}
 
-loadBootstrapStats();
-setInterval(loadBootstrapStats, 30000);
-fetchStatus();
-setInterval(fetchStatus, 5000);
-addLog('Goldogram Full Node v1.0.0 ready.', 'success');
-addLog('1 GoGX = 1 gram of gold. Quantum-secure.', 'info');
+function showMinerSyncBanner(current, total) {
+  const banner = document.getElementById('mining-sync-banner');
+  const bar = document.getElementById('mining-sync-bar');
+  const text = document.getElementById('mining-sync-text');
+  if (!banner) return;
+  banner.style.display = 'block';
+  const pct = total > 0 ? Math.min(100, (current / total * 100)).toFixed(1) : 0;
+  bar.style.width = pct + '%';
+  text.textContent = current.toLocaleString() + ' / ' + total.toLocaleString() + ' blocks (' + pct + '%)';
+}
+
+// Listen for miner logs
+window.miner.onLog((msg) => addMinerLog(msg.line));
+window.miner.onStopped((msg) => {
+  minerRunning = false;
+  document.getElementById('miner-stat-status').textContent = 'Stopped';
+  document.getElementById('miner-stat-status').style.color = '#555';
+  document.getElementById('btn-start-miner').disabled = false;
+  document.getElementById('btn-stop-miner').disabled = true;
+  addMinerLog('⚠️ Miner process exited (code ' + msg.code + ')');
+});
+
+// Auto-fill address from login session
+window.addEventListener('DOMContentLoaded', () => {
+  const saved = localStorage.getItem('gog_address');
+  if (saved) document.getElementById('miner-address').value = saved;
+});
+
 </script>
 </body>
 </html>
