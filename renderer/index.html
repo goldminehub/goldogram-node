@@ -140,6 +140,10 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="17" cy="7" r="3"/><circle cx="7" cy="17" r="3"/><path d="M14 14l-4-4"/><circle cx="7" cy="7" r="3"/><circle cx="17" cy="17" r="3"/></svg>
       Peers
     </div>
+    <div class="nav-item" onclick="showPanel('mining')" id="nav-mining">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      Mining
+    </div>
     <div class="nav-item" onclick="showPanel('validator')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
       Validator
@@ -290,6 +294,62 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
       <div class="controls">
         <button class="btn btn-primary" onclick="saveConfig()">Save Config</button>
         <button class="btn btn-secondary" onclick="resetConfig()">Reset Defaults</button>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-mining">
+      <div style="padding:20px;overflow-y:auto;flex:1;">
+        <div style="font-size:16px;font-weight:600;color:#D4AF37;margin-bottom:16px;">⛏️ Miner</div>
+
+        <!-- Sync Status -->
+        <div id="mining-sync-banner" style="background:#1a1400;border:1px solid #2a2000;border-radius:8px;padding:12px 16px;margin-bottom:16px;display:none;">
+          <div style="font-size:12px;color:#D4AF37;font-weight:600;margin-bottom:6px;">⏳ Syncing blockchain before mining...</div>
+          <div style="background:#0d0d0d;border-radius:4px;height:6px;overflow:hidden;">
+            <div id="mining-sync-bar" style="height:100%;background:#D4AF37;width:0%;transition:width 0.5s;"></div>
+          </div>
+          <div id="mining-sync-text" style="font-size:11px;color:#666;margin-top:6px;">0 / 0 blocks</div>
+        </div>
+
+        <!-- Miner Config -->
+        <div style="background:#0d0d0d;border:1px solid #1a1a1a;border-radius:8px;padding:16px;margin-bottom:16px;">
+          <div style="font-size:12px;color:#555;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">Configuration</div>
+          <label style="font-size:12px;color:#666;display:block;margin-bottom:4px;">Mining Address (GoGX)</label>
+          <input id="miner-address" placeholder="GoXXX..." style="width:100%;background:#080808;border:1px solid #1a1a1a;border-radius:6px;padding:8px 12px;color:#e8e0cc;font-size:12px;font-family:monospace;outline:none;box-sizing:border-box;margin-bottom:12px;"/>
+          <label style="font-size:12px;color:#666;display:block;margin-bottom:4px;">API Node</label>
+          <input id="miner-api-node" value="http://goldminequant.org" style="width:100%;background:#080808;border:1px solid #1a1a1a;border-radius:6px;padding:8px 12px;color:#e8e0cc;font-size:12px;font-family:monospace;outline:none;box-sizing:border-box;"/>
+        </div>
+
+        <!-- Miner Stats -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+          <div style="background:#0d0d0d;border:1px solid #1a1a1a;border-radius:8px;padding:12px;text-align:center;">
+            <div id="miner-stat-status" style="font-size:18px;font-weight:600;color:#555;">Stopped</div>
+            <div style="font-size:10px;color:#444;text-transform:uppercase;margin-top:4px;">Status</div>
+          </div>
+          <div style="background:#0d0d0d;border:1px solid #1a1a1a;border-radius:8px;padding:12px;text-align:center;">
+            <div id="miner-stat-blocks" style="font-size:18px;font-weight:600;color:#D4AF37;">0</div>
+            <div style="font-size:10px;color:#444;text-transform:uppercase;margin-top:4px;">Blocks Found</div>
+          </div>
+          <div style="background:#0d0d0d;border:1px solid #1a1a1a;border-radius:8px;padding:12px;text-align:center;">
+            <div id="miner-stat-height" style="font-size:18px;font-weight:600;color:#D4AF37;">—</div>
+            <div style="font-size:10px;color:#444;text-transform:uppercase;margin-top:4px;">Mining Height</div>
+          </div>
+          <div style="background:#0d0d0d;border:1px solid #1a1a1a;border-radius:8px;padding:12px;text-align:center;">
+            <div id="miner-stat-reward" style="font-size:18px;font-weight:600;color:#D4AF37;">0</div>
+            <div style="font-size:10px;color:#444;text-transform:uppercase;margin-top:4px;">GoGX Earned</div>
+          </div>
+        </div>
+
+        <!-- Controls -->
+        <div style="display:flex;gap:10px;margin-bottom:16px;">
+          <button onclick="startMiner()" id="btn-start-miner" style="flex:1;padding:10px;background:#D4AF37;color:#000;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">▶ Start Mining</button>
+          <button onclick="stopMiner()" id="btn-stop-miner" style="flex:1;padding:10px;background:#1a1a1a;color:#666;border:1px solid #2a2a2a;border-radius:6px;font-size:13px;cursor:pointer;" disabled>⏹ Stop</button>
+        </div>
+
+        <!-- Miner Logs -->
+        <div style="background:#080808;border:1px solid #1a1a1a;border-radius:8px;padding:12px;">
+          <div style="font-size:11px;color:#555;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Miner Logs</div>
+          <div id="miner-logs" style="font-family:monospace;font-size:11px;color:#666;height:200px;overflow-y:auto;line-height:1.6;"></div>
+        </div>
       </div>
     </div>
 
@@ -640,6 +700,108 @@ async function setupJoinValidator() {
 function setupSkip() {
   document.getElementById('setup-overlay').style.display = 'none';
 }
+
+// ── MINER ────────────────────────────────────────────────
+let minerRunning = false;
+let minerBlocksFound = 0;
+let minerGoGXEarned = 0;
+
+async function startMiner() {
+  const address = document.getElementById('miner-address').value.trim();
+  const apiNode = document.getElementById('miner-api-node').value.trim();
+  if (!address) { addMinerLog('⚠️ Enter your GoGX address first'); return; }
+
+  // Check if node is synced first
+  const status = await window.node.getStatus();
+  if (status.ok) {
+    const chainHeight = status.data.height || 0;
+    const localHeight = parseInt(document.getElementById('miner-stat-height').textContent) || 0;
+    if (localHeight > 0 && localHeight < chainHeight - 10) {
+      addMinerLog('⏳ Waiting for sync to complete...');
+      showMinerSyncBanner(localHeight, chainHeight);
+      return;
+    }
+  }
+
+  const result = await window.miner.start({ address, apiNode });
+  if (result.error) { addMinerLog('❌ ' + result.error); return; }
+
+  minerRunning = true;
+  document.getElementById('miner-stat-status').textContent = 'Mining';
+  document.getElementById('miner-stat-status').style.color = '#4ade80';
+  document.getElementById('btn-start-miner').disabled = true;
+  document.getElementById('btn-stop-miner').disabled = false;
+  document.getElementById('btn-stop-miner').style.color = '#fff';
+  addMinerLog('⛏️ Miner started — address: ' + address.slice(0, 14) + '...');
+}
+
+async function stopMiner() {
+  await window.miner.stop();
+  minerRunning = false;
+  document.getElementById('miner-stat-status').textContent = 'Stopped';
+  document.getElementById('miner-stat-status').style.color = '#555';
+  document.getElementById('btn-start-miner').disabled = false;
+  document.getElementById('btn-stop-miner').disabled = true;
+  document.getElementById('btn-stop-miner').style.color = '#666';
+  addMinerLog('⏹ Miner stopped');
+}
+
+function addMinerLog(line) {
+  const el = document.getElementById('miner-logs');
+  if (!el) return;
+  const div = document.createElement('div');
+  const isBlock = line.includes('accepted') || line.includes('Block found');
+  div.style.color = isBlock ? '#D4AF37' : line.includes('❌') ? '#f87171' : '#666';
+  if (isBlock) div.style.fontWeight = '600';
+  div.textContent = '[' + new Date().toLocaleTimeString() + '] ' + line;
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+  if (el.children.length > 200) el.removeChild(el.firstChild);
+
+  // Parse mining stats from logs
+  const heightMatch = line.match(/Mining block (\d+)/);
+  if (heightMatch) {
+    document.getElementById('miner-stat-height').textContent = heightMatch[1];
+  }
+  if (line.includes('accepted')) {
+    minerBlocksFound++;
+    document.getElementById('miner-stat-blocks').textContent = minerBlocksFound;
+    const rewardMatch = line.match(/reward:(\d+)/);
+    if (rewardMatch) {
+      minerGoGXEarned += parseInt(rewardMatch[1]) / 1e6;
+      document.getElementById('miner-stat-reward').textContent = minerGoGXEarned.toFixed(2);
+    }
+  }
+}
+
+function showMinerSyncBanner(current, total) {
+  const banner = document.getElementById('mining-sync-banner');
+  const bar = document.getElementById('mining-sync-bar');
+  const text = document.getElementById('mining-sync-text');
+  if (!banner) return;
+  banner.style.display = 'block';
+  const pct = total > 0 ? Math.min(100, (current / total * 100)).toFixed(1) : 0;
+  bar.style.width = pct + '%';
+  text.textContent = current.toLocaleString() + ' / ' + total.toLocaleString() + ' blocks (' + pct + '%)';
+}
+
+// Listen for miner logs
+window.miner.onLog((msg) => addMinerLog(msg.line));
+window.miner.onStopped((msg) => {
+  minerRunning = false;
+  document.getElementById('miner-stat-status').textContent = 'Stopped';
+  document.getElementById('miner-stat-status').style.color = '#555';
+  document.getElementById('btn-start-miner').disabled = false;
+  document.getElementById('btn-stop-miner').disabled = true;
+  addMinerLog('⚠️ Miner process exited (code ' + msg.code + ')');
+});
+
+// Auto-fill address from login session
+window.addEventListener('DOMContentLoaded', () => {
+  const saved = localStorage.getItem('gog_address');
+  if (saved) document.getElementById('miner-address').value = saved;
+});
+
 </script>
 </body>
 </html>

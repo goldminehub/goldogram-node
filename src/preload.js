@@ -1,5 +1,4 @@
 const { contextBridge, ipcRenderer } = require('electron');
-
 contextBridge.exposeInMainWorld('node', {
   start: (opts) => ipcRenderer.invoke('start-node', opts),
   stop: () => ipcRenderer.invoke('stop-node'),
@@ -7,4 +6,10 @@ contextBridge.exposeInMainWorld('node', {
   getSysinfo: () => ipcRenderer.invoke('get-sysinfo'),
   onLog: (cb) => ipcRenderer.on('node-log', (_, msg) => cb(msg)),
   onStopped: (cb) => ipcRenderer.on('node-stopped', (_, msg) => cb(msg)),
+});
+contextBridge.exposeInMainWorld('miner', {
+  start: (opts) => ipcRenderer.invoke('start-miner', opts),
+  stop: () => ipcRenderer.invoke('stop-miner'),
+  onLog: (cb) => ipcRenderer.on('miner-log', (_, msg) => cb(msg)),
+  onStopped: (cb) => ipcRenderer.on('miner-stopped', (_, msg) => cb(msg)),
 });
