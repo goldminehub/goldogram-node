@@ -20,7 +20,7 @@
           ]
         }
       ],
-      "icon": "assets/icon-512.png"
+      "icon": "assets/icon.ico"
     },
     "mac": {
       "category": "public.app-category.utilities",
@@ -32,7 +32,7 @@
           ]
         }
       ],
-      "icon": "assets/icon-512.png"
+      "icon": "assets/icon.icns"
     },
     "extraResources": [
       {
@@ -44,7 +44,12 @@
       "src/**/*",
       "renderer/**/*",
       "assets/**/*"
-    ]
+    ],
+    "publish": {
+      "provider": "github",
+      "owner": "goldminehub",
+      "repo": "goldogram-node"
+    }
   },
   "devDependencies": {
     "electron": "^35.0.0",

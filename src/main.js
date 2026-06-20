@@ -1,4 +1,5 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const { spawn } = require('child_process');
 const path = require('path');
 const os = require('os');
@@ -33,7 +34,29 @@ function createWindow() {
   mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  createWindow();
+  // Check for updates after 3 seconds
+  setTimeout(() => {
+    autoUpdater.checkForUpdatesAndNotify();
+  }, 3000);
+});
+
+autoUpdater.on('update-available', (info) => {
+  mainWindow?.webContents.send('update-available', { version: info.version });
+});
+
+autoUpdater.on('update-downloaded', (info) => {
+  mainWindow?.webContents.send('update-downloaded', { version: info.version });
+});
+
+autoUpdater.on('download-progress', (progress) => {
+  mainWindow?.webContents.send('update-progress', { percent: progress.percent });
+});
+
+autoUpdater.on('error', (err) => {
+  mainWindow?.webContents.send('update-error', { message: err.message });
+});
 
 app.on('window-all-closed', () => {
   if (nodeProcess) nodeProcess.kill();
@@ -107,6 +130,16 @@ ipcMain.handle('get-status', async () => {
   } catch {
     return { ok: false };
   }
+});
+
+ipcMain.handle('check-update', () => {
+  autoUpdater.checkForUpdates();
+  return { ok: true };
+});
+
+ipcMain.handle('install-update', () => {
+  autoUpdater.quitAndInstall();
+  return { ok: true };
 });
 
 ipcMain.handle('get-sysinfo', () => {

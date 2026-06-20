@@ -162,6 +162,22 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
   <div class="content">
 
     <!-- Dashboard Panel -->
+    <!-- Update Banner -->
+    <div id="update-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:999;background:#1a1400;border-bottom:1px solid #D4AF37;padding:10px 20px;display:none;align-items:center;justify-content:space-between;">
+      <div>
+        <span style="color:#D4AF37;font-weight:600;font-size:13px;">🆕 Update available: </span>
+        <span id="update-version" style="color:#fff;font-size:13px;">v0.0.0</span>
+        <span id="update-progress-text" style="color:#666;font-size:12px;margin-left:8px;"></span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <div id="update-progress-bar-wrap" style="display:none;width:120px;height:4px;background:#333;border-radius:2px;">
+          <div id="update-progress-bar" style="height:100%;background:#D4AF37;border-radius:2px;width:0%;transition:width 0.3s;"></div>
+        </div>
+        <button id="btn-install-update" onclick="installUpdate()" style="display:none;padding:6px 14px;background:#D4AF37;color:#000;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">Restart & Install</button>
+        <button onclick="document.getElementById('update-banner').style.display='none'" style="padding:4px 10px;background:transparent;color:#666;border:1px solid #333;border-radius:6px;font-size:12px;cursor:pointer;">Later</button>
+      </div>
+    </div>
+
     <div class="panel active" id="panel-dashboard">
       <div class="stats-grid">
         <div class="stat-card">
@@ -802,6 +818,49 @@ window.addEventListener('DOMContentLoaded', () => {
   if (saved) document.getElementById('miner-address').value = saved;
 });
 
+
+// ── AUTO-UPDATE ──────────────────────────────────────────
+function showUpdateBanner(version) {
+  const banner = document.getElementById('update-banner');
+  const ver = document.getElementById('update-version');
+  if (banner) { banner.style.display = 'flex'; }
+  if (ver) ver.textContent = 'v' + version;
+}
+
+async function checkForUpdates() {
+  await window.updater.check();
+  addLog('Checking for updates...');
+}
+
+async function installUpdate() {
+  await window.updater.install();
+}
+
+window.updater.onAvailable((msg) => {
+  showUpdateBanner(msg.version);
+  addLog('Update available: v' + msg.version);
+});
+
+window.updater.onProgress((msg) => {
+  const bar = document.getElementById('update-progress-bar');
+  const wrap = document.getElementById('update-progress-bar-wrap');
+  const text = document.getElementById('update-progress-text');
+  if (bar) bar.style.width = msg.percent.toFixed(0) + '%';
+  if (wrap) wrap.style.display = 'block';
+  if (text) text.textContent = 'Downloading... ' + msg.percent.toFixed(0) + '%';
+});
+
+window.updater.onDownloaded((msg) => {
+  const btn = document.getElementById('btn-install-update');
+  const text = document.getElementById('update-progress-text');
+  if (btn) btn.style.display = 'block';
+  if (text) text.textContent = 'Ready to install';
+  addLog('Update downloaded — click Restart & Install');
+});
+
+window.updater.onError((msg) => {
+  addLog('Update error: ' + msg.message);
+});
 </script>
 </body>
 </html>
