@@ -183,7 +183,7 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
         <div class="stat-card">
           <div class="stat-label">Block Height</div>
           <div class="stat-value" id="stat-height">—</div>
-          <div class="stat-sub">Genesis: 0</div>
+          <div class="stat-sub" id="stat-height-sub">Genesis: 0</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">Peers</div>
@@ -209,6 +209,8 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
         <button class="btn btn-primary" id="btn-start" onclick="startNode()">Start Node</button>
         <button class="btn btn-danger" id="btn-stop" onclick="stopNode()" style="display:none">Stop Node</button>
         <button class="btn btn-secondary" onclick="clearLogs()">Clear Logs</button>
+        <span id="sync-state-text" style="margin-left:12px;"></span>
+        <span id="last-block-text" style="font-size:12px;color:#666;"></span>
         <span style="margin-left:auto;font-size:12px;color:#444;" id="uptime-text"></span>
       </div>
     </div>
@@ -304,7 +306,18 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
         </div>
         <div class="form-group">
           <label class="form-label">Bootstrap Peers (one per line)</label>
-          <textarea class="form-input" id="cfg-bootstrap" rows="4" style="resize:vertical;">goldminequant.org:30303</textarea>
+          <textarea class="form-input" id="cfg-bootstrap" rows="4" style="resize:vertical;">goldminequant.org:8333
+87.255.81.125:8333</textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Validator Address (optional — run as validator)</label>
+            <input class="form-input" id="cfg-validator" placeholder="Go... (leave empty to run as regular full node)" value=""/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Validator Stake (GoG)</label>
+            <input class="form-input" id="cfg-stake" value="10000" type="number"/>
+          </div>
         </div>
       </div>
       <div class="controls">
@@ -492,6 +505,9 @@ function setRunning(val) {
     document.getElementById('stat-peers').textContent = '—';
     document.getElementById('stat-diff').textContent = '—';
     document.getElementById('stat-hash').textContent = '—';
+    document.getElementById('stat-height-sub').textContent = 'Genesis: 0';
+    document.getElementById('sync-state-text').innerHTML = '';
+    document.getElementById('last-block-text').textContent = '';
   }
 }
 
@@ -508,8 +524,12 @@ function updateUptime() {
 async function startNode() {
   const url = document.getElementById('cfg-url').value;
   const datadir = document.getElementById('cfg-datadir').value;
+  const seeds = document.getElementById('cfg-bootstrap').value;
+  const validatorAddress = document.getElementById('cfg-validator').value.trim();
+  const validatorStake = document.getElementById('cfg-stake').value;
   addLog('Starting Goldogram Full Node...', 'info');
-  const res = await window.node?.start({ url, datadir });
+  if (validatorAddress) addLog('Validator mode: ' + validatorAddress, 'info');
+  const res = await window.node?.start({ url, datadir, seeds, validatorAddress, validatorStake });
   if (res?.error) { addLog('Error: ' + res.error, 'error'); return; }
   setRunning(true);
   addLog('Node started. Connecting to network...', 'success');
@@ -528,10 +548,57 @@ async function fetchStatus() {
   if (!res?.ok) return;
   const d = res.data;
   document.getElementById('stat-height').textContent = (d.height || 0).toLocaleString();
-  document.getElementById('stat-peers').textContent = d.peers ?? d.connected_peers ?? '0';
-  document.getElementById('stat-diff').textContent = d.difficulty ?? '—';
-  const hr = d.network_hashrate ?? d.hashrate ?? 0;
-  document.getElementById('stat-hash').textContent = hr > 1e6 ? (hr/1e6).toFixed(2) + 'M' : hr.toLocaleString();
+  const sub = document.getElementById('stat-height-sub');
+  if (sub && d.network_height) sub.textContent = 'Network: ' + Number(d.network_height).toLocaleString();
+  document.getElementById('stat-peers').textContent = d.peers ?? d.connected_peers ?? d.peer_count ?? '0';
+  const diff = d.difficulty;
+  document.getElementById('stat-diff').textContent = (diff == null || diff === 0) ? 'n/a' : diff;
+  const hr = d.network_hashrate ?? d.hashrate;
+  document.getElementById('stat-hash').textContent =
+    (hr == null || hr === 0) ? 'n/a' : (hr > 1e6 ? (hr/1e6).toFixed(2) + 'M' : Number(hr).toLocaleString());
+
+  // Sync state + last block time (fullnode local status endpoint)
+  const sync = document.getElementById('sync-state-text');
+  if (sync) {
+    if (d.sync_state === 'synced') {
+      sync.innerHTML = '<span class="badge badge-green">Synced ✓</span>';
+    } else if (d.sync_state === 'syncing') {
+      sync.innerHTML = '<span class="badge badge-yellow">Syncing — ' + Number(d.behind_by || 0).toLocaleString() + ' behind</span>';
+    } else if (d.sync_state) {
+      sync.innerHTML = '<span class="badge badge-yellow">' + escHtml(String(d.sync_state)) + '</span>';
+    } else {
+      sync.innerHTML = '';
+    }
+  }
+  const lb = document.getElementById('last-block-text');
+  if (lb) {
+    if (d.last_block_time) {
+      const ago = Math.max(0, Math.floor(Date.now() / 1000 - d.last_block_time));
+      lb.textContent = 'Last block: ' + (ago < 60 ? ago + 's ago' : ago < 3600 ? Math.floor(ago / 60) + 'm ago' : Math.floor(ago / 3600) + 'h ago');
+    } else {
+      lb.textContent = '';
+    }
+  }
+  renderPeers(d.peer_list);
+}
+
+function renderPeers(list) {
+  const container = document.getElementById('peers-list');
+  if (!container || !Array.isArray(list)) return;
+  if (list.length === 0) {
+    container.innerHTML = '<div class="empty-state">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="17" cy="7" r="3"/><circle cx="7" cy="17" r="3"/><path d="M14 14l-4-4"/><circle cx="7" cy="7" r="3"/><circle cx="17" cy="17" r="3"/></svg>' +
+      '<span>No peers connected</span></div>';
+    return;
+  }
+  container.innerHTML = list.map(p =>
+    '<div class="peer-item">' +
+      '<div><div class="peer-addr">' + escHtml(p.addr || '?') + '</div>' +
+      '<div class="peer-latency">node_id: ' + escHtml(p.node_id || '?') + '</div></div>' +
+      '<div style="text-align:right;"><div class="peer-height">h=' + Number(p.height || 0).toLocaleString() + '</div>' +
+      '<div class="peer-latency">' + escHtml(p.role || '?') + '</div></div>' +
+    '</div>'
+  ).join('');
 }
 
 function saveConfig() {
@@ -543,7 +610,9 @@ function resetConfig() {
   document.getElementById('cfg-port').value = '8080';
   document.getElementById('cfg-peers').value = '25';
   document.getElementById('cfg-datadir').value = '';
-  document.getElementById('cfg-bootstrap').value = 'goldminequant.org:30303';
+  document.getElementById('cfg-bootstrap').value = 'goldminequant.org:8333\n87.255.81.125:8333';
+  document.getElementById('cfg-validator').value = '';
+  document.getElementById('cfg-stake').value = '10000';
 }
 
 async function loadSysinfo() {

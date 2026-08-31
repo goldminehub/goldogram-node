@@ -8,6 +8,13 @@ let mainWindow;
 let nodeProcess = null;
 let minerProcess = null;
 
+// Multiple seeds: DNS name first (survives IP changes), raw IP as fallback.
+// The node also remembers good peers in peers.dat and retries them at startup,
+// so the network heals even when every seed here is unreachable.
+const DEFAULT_SEEDS = 'goldminequant.org:8333,87.255.81.125:8333';
+// Ordered API endpoints for chain sync (first healthy wins). Add api2/api3 when Phase-1 HA servers exist.
+const DEFAULT_API_NODES = 'https://goldminequant.org,http://87.255.81.125:8080';
+
 function getBinaryPath(name) {
   const isWin = process.platform === 'win32';
   const binaryName = isWin ? `${name}.exe` : name;
@@ -42,6 +49,11 @@ app.whenReady().then(() => {
   }, 3000);
 });
 
+// macOS: re-create the window when the dock icon is clicked and no window is open.
+app.on('activate', () => {
+  if (BrowserWindow.getAllWindows().length === 0) createWindow();
+});
+
 autoUpdater.on('update-available', (info) => {
   mainWindow?.webContents.send('update-available', { version: info.version });
 });
@@ -64,13 +76,27 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
-ipcMain.handle('start-node', (event, { datadir }) => {
+ipcMain.handle('start-node', (event, { datadir, seeds, validatorAddress, validatorStake }) => {
   if (nodeProcess) return { error: 'Node already running' };
   const binaryPath = getBinaryPath('goldogram-core');
   const args = ['node', '--fullnode'];
   if (datadir) args.push('--datadir', datadir);
+  if (validatorAddress && String(validatorAddress).trim()) {
+    args.push('--validator-address', String(validatorAddress).trim());
+    const stake = parseInt(validatorStake, 10);
+    if (Number.isFinite(stake) && stake > 0) args.push('--stake', String(stake));
+  }
+  const seedList = seeds && String(seeds).trim()
+    ? String(seeds).split(/[\n,]+/).map((s) => s.trim()).filter(Boolean).join(',')
+    : DEFAULT_SEEDS;
   nodeProcess = spawn(binaryPath, args, {
-    env: { ...process.env, SEED_NODES: '87.255.81.125:8333', API_NODE: 'http://goldminequant.org' }
+    env: {
+      ...process.env,
+      SEED_NODES: seedList,
+      API_NODE: DEFAULT_API_NODES.split(',')[0],
+      API_NODES: DEFAULT_API_NODES,
+      ...(datadir ? { GOLDOGRAM_DATADIR: datadir } : {}),
+    }
   });
   nodeProcess.stdout.on('data', (data) => {
     data.toString().split('\n').filter(Boolean).forEach(line => {
@@ -98,7 +124,7 @@ ipcMain.handle('start-miner', (event, { address, apiNode }) => {
   if (minerProcess) return { error: 'Miner already running' };
   const binaryPath = getBinaryPath('goldogram-core');
   minerProcess = spawn(binaryPath, ['node', '--mine'], {
-    env: { ...process.env, MINER_ADDRESS: address, API_NODE: apiNode || 'http://goldminequant.org', SEED_NODES: '87.255.81.125:8333' }
+    env: { ...process.env, MINER_ADDRESS: address, API_NODE: apiNode || 'http://goldminequant.org', SEED_NODES: DEFAULT_SEEDS }
   });
   minerProcess.stdout.on('data', (data) => {
     data.toString().split('\n').filter(Boolean).forEach(line => {
