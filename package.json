@@ -1,6 +1,6 @@
 {
   "name": "goldogram-node",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "description": "Goldogram Full Node",
   "author": "Goldogram <support@goldminequant.org>",
   "main": "src/main.js",
