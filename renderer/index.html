@@ -233,6 +233,11 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
     <div class="panel" id="panel-peers">
       <div style="padding:16px 16px 8px;flex-shrink:0;">
         <div class="section-title">Connected Peers</div>
+        <div id="reach-row" style="margin-top:10px;font-size:13px;color:#888;">
+          Reachable: <span id="reach-value">—</span>
+          <span id="reach-counts" style="margin-left:12px;color:#555;"></span>
+        </div>
+        <div id="reach-hint" style="margin-top:6px;font-size:12px;color:#666;"></div>
       </div>
       <div class="peers-list" id="peers-list">
         <div class="empty-state">
@@ -607,6 +612,7 @@ async function fetchStatus() {
       lb.textContent = '';
     }
   }
+  renderReachability(d);
   renderPeers(d.peer_list);
 
   const mining = d.mining || {};
@@ -632,6 +638,32 @@ async function fetchStatus() {
   }
   const mHeight = document.getElementById('miner-stat-height');
   if (mHeight && d.height != null) mHeight.textContent = Number(d.height).toLocaleString();
+}
+
+function renderReachability(d) {
+  const v = document.getElementById('reach-value');
+  const hint = document.getElementById('reach-hint');
+  const counts = document.getElementById('reach-counts');
+  if (!v) return;
+  if (d.reachable === true) {
+    v.textContent = 'yes';
+    v.style.color = '#4ade80';
+  } else if (d.reachable === false) {
+    v.textContent = 'no';
+    v.style.color = '#f87171';
+  } else {
+    v.textContent = '—';
+    v.style.color = '#555';
+  }
+  if (counts) {
+    const parts = [];
+    if (d.listen) parts.push('listen ' + d.listen);
+    if (d.outbound != null) parts.push('out ' + d.outbound);
+    if (d.inbound != null) parts.push('in ' + d.inbound);
+    if (d.book_size != null) parts.push('book ' + d.book_size);
+    counts.textContent = parts.join(' · ');
+  }
+  if (hint) hint.textContent = d.reachable ? '' : (d.nat_hint || '');
 }
 
 function renderPeers(list) {
