@@ -1,9 +1,18 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const { autoUpdater } = require('electron-updater');
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 const path = require('path');
 const os = require('os');
 const { buildNodeArgs } = require('./node_args');
+const {
+  LOCK_GRACE_MS,
+  CORE_NAME_WIN,
+  taskkillArgs,
+  parseWmicProcessCsv,
+  orphansFromAppBin,
+  waitForExit,
+  sleep,
+} = require('./process_kill');
 
 let mainWindow;
 let nodeProcess = null;
@@ -24,6 +33,66 @@ function getBinaryPath(name) {
     : path.join(__dirname, '../bin', binaryName);
 }
 
+function getBinaryDir() {
+  return path.dirname(getBinaryPath('goldogram-core'));
+}
+
+function forceKillPid(pid) {
+  if (!pid) return;
+  if (process.platform === 'win32') {
+    spawnSync('taskkill', taskkillArgs(pid), { windowsHide: true });
+  } else {
+    try { process.kill(pid, 'SIGKILL'); } catch (_) { /* already gone */ }
+  }
+}
+
+async function killChild(child) {
+  if (!child || !child.pid) return;
+  const pid = child.pid;
+  forceKillPid(pid);
+  await waitForExit(child);
+}
+
+function listWindowsCoreProcesses() {
+  const r = spawnSync(
+    'wmic',
+    ['process', 'where', `name='${CORE_NAME_WIN}'`, 'get', 'ProcessId,ExecutablePath', '/FORMAT:CSV'],
+    { encoding: 'utf8', windowsHide: true }
+  );
+  return parseWmicProcessCsv(r.stdout || '');
+}
+
+async function killAppCoreOrphans() {
+  const binDir = getBinaryDir();
+  if (process.platform === 'win32') {
+    for (const p of orphansFromAppBin(listWindowsCoreProcesses(), binDir)) {
+      if (nodeProcess && p.pid === nodeProcess.pid) continue;
+      if (minerProcess && p.pid === minerProcess.pid) continue;
+      forceKillPid(p.pid);
+    }
+  }
+  await sleep(LOCK_GRACE_MS);
+}
+
+async function stopTrackedNode() {
+  const child = nodeProcess;
+  nodeProcess = null;
+  await killChild(child);
+  if (minerProcess) {
+    const m = minerProcess;
+    minerProcess = null;
+    await killChild(m);
+  }
+  await sleep(LOCK_GRACE_MS);
+}
+
+function emitNodeStopped(code, error) {
+  mainWindow?.webContents.send('node-stopped', { code, error: error || null });
+  if (error) {
+    mainWindow?.webContents.send('node-log', { type: 'stderr', line: error });
+  }
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1000,
@@ -42,7 +111,8 @@ function createWindow() {
   mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  await killAppCoreOrphans();
   createWindow();
   // Check for updates after 3 seconds
   setTimeout(() => {
@@ -72,13 +142,13 @@ autoUpdater.on('error', (err) => {
 });
 
 app.on('window-all-closed', () => {
-  if (nodeProcess) nodeProcess.kill();
-  if (minerProcess) minerProcess.kill();
+  stopTrackedNode();
   if (process.platform !== 'darwin') app.quit();
 });
 
-ipcMain.handle('start-node', (event, { datadir, seeds, validatorAddress, validatorStake, mine, rewardAddress }) => {
-  if (nodeProcess) return { error: 'Node already running' };
+ipcMain.handle('start-node', async (event, { datadir, seeds, validatorAddress, validatorStake, mine, rewardAddress }) => {
+  await stopTrackedNode();
+  await killAppCoreOrphans();
   const binaryPath = getBinaryPath('goldogram-core');
   const args = buildNodeArgs({ datadir, validatorAddress, validatorStake, mine, rewardAddress });
   const reward = rewardAddress && String(rewardAddress).trim();
@@ -100,26 +170,45 @@ ipcMain.handle('start-node', (event, { datadir, seeds, validatorAddress, validat
   } else {
     env.API_NODE = DEFAULT_API_NODES.split(',')[0];
   }
-  nodeProcess = spawn(binaryPath, args, { env });
-  nodeProcess.stdout.on('data', (data) => {
+  let child;
+  try {
+    child = spawn(binaryPath, args, { env });
+  } catch (e) {
+    const error = 'spawn failed: ' + (e && e.message ? e.message : String(e));
+    emitNodeStopped(1, error);
+    return { error };
+  }
+  nodeProcess = child;
+  child.stdout.on('data', (data) => {
     data.toString().split('\n').filter(Boolean).forEach(line => {
       mainWindow?.webContents.send('node-log', { type: 'stdout', line });
+      if (/could not acquire lock|os error 33/i.test(line)) {
+        emitNodeStopped(1, line);
+      }
     });
   });
-  nodeProcess.stderr.on('data', (data) => {
+  child.stderr.on('data', (data) => {
     data.toString().split('\n').filter(Boolean).forEach(line => {
       mainWindow?.webContents.send('node-log', { type: 'stderr', line });
+      if (/could not acquire lock|os error 33/i.test(line)) {
+        emitNodeStopped(1, line);
+      }
     });
   });
-  nodeProcess.on('exit', (code) => {
-    nodeProcess = null;
-    mainWindow?.webContents.send('node-stopped', { code });
+  child.on('error', (err) => {
+    if (nodeProcess === child) nodeProcess = null;
+    emitNodeStopped(1, 'spawn failed: ' + err.message);
+  });
+  child.on('exit', (code) => {
+    if (nodeProcess === child) nodeProcess = null;
+    const failed = code !== 0 && code != null;
+    emitNodeStopped(code, failed ? `goldogram-core exited (code ${code})` : null);
   });
   return { ok: true };
 });
 
-ipcMain.handle('stop-node', () => {
-  if (nodeProcess) { nodeProcess.kill(); nodeProcess = null; }
+ipcMain.handle('stop-node', async () => {
+  await stopTrackedNode();
   return { ok: true };
 });
 

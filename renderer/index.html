@@ -479,6 +479,23 @@ function clearLogs() {
   document.getElementById('full-log').innerHTML = '';
 }
 
+function setMiningStopped(reason) {
+  minerRunning = false;
+  const mStatus = document.getElementById('miner-stat-status');
+  if (mStatus) {
+    mStatus.textContent = 'Stopped';
+    mStatus.style.color = '#555';
+  }
+  const btnStart = document.getElementById('btn-start-miner');
+  const btnStop = document.getElementById('btn-stop-miner');
+  if (btnStart) btnStart.disabled = false;
+  if (btnStop) {
+    btnStop.disabled = true;
+    btnStop.style.color = '#666';
+  }
+  if (reason) addMinerLog('❌ ' + reason);
+}
+
 function setRunning(val) {
   running = val;
   const dot = document.getElementById('status-dot');
@@ -535,11 +552,17 @@ async function startNode() {
   const mine = document.getElementById('mine-on-node')?.checked;
   const rewardAddress = document.getElementById('miner-address')?.value.trim();
   const res = await window.node?.start({ url, datadir, seeds, validatorAddress, validatorStake, mine, rewardAddress });
-  if (res?.error) { addLog('Error: ' + res.error, 'error'); return; }
+  if (res?.error) {
+    addLog('Error: ' + res.error, 'error');
+    setRunning(false);
+    setMiningStopped(res.error);
+    return res;
+  }
   setRunning(true);
   addLog('Node started. Connecting to network...', 'success');
   statusInterval = setInterval(fetchStatus, 3000);
   fetchStatus();
+  return res;
 }
 
 async function stopNode() {
@@ -589,7 +612,10 @@ async function fetchStatus() {
   const mining = d.mining || {};
   const mStatus = document.getElementById('miner-stat-status');
   if (mStatus) {
-    if (mining.active) {
+    if (!running) {
+      mStatus.textContent = 'Stopped';
+      mStatus.style.color = '#555';
+    } else if (mining.active) {
       mStatus.textContent = 'Mining';
       mStatus.style.color = '#4ade80';
     } else if (document.getElementById('mine-on-node')?.checked) {
@@ -663,7 +689,10 @@ if (window.node) {
   });
   window.node.onStopped((msg) => {
     setRunning(false);
+    const err = msg.error || (msg.code && msg.code !== 0 ? 'goldogram-core exited (code ' + msg.code + ')' : '');
     addLog('Node process exited (code ' + (msg.code ?? '?') + ')', msg.code === 0 ? 'info' : 'error');
+    if (err) setMiningStopped(err);
+    else setMiningStopped();
   });
   loadSysinfo();
 }
@@ -829,9 +858,11 @@ async function startMiner() {
   if (mineToggle) mineToggle.checked = true;
   localStorage.setItem('gog_address', address);
   addMinerLog('⛏️ Starting full node with --mine --reward-address ' + address.slice(0, 14) + '...');
-  await window.node?.stop();
-  setRunning(false);
-  await startNode();
+  const res = await startNode();
+  if (res?.error) {
+    setMiningStopped(res.error);
+    return;
+  }
   minerRunning = true;
   document.getElementById('miner-stat-status').textContent = 'Starting';
   document.getElementById('miner-stat-status').style.color = '#D4AF37';
@@ -844,9 +875,11 @@ async function stopMiner() {
   const mineToggle = document.getElementById('mine-on-node');
   if (mineToggle) mineToggle.checked = false;
   addMinerLog('⏹ Restarting node without mining');
-  await window.node?.stop();
-  setRunning(false);
-  await startNode();
+  const res = await startNode();
+  if (res?.error) {
+    setMiningStopped(res.error);
+    return;
+  }
   minerRunning = false;
   document.getElementById('miner-stat-status').textContent = 'Stopped';
   document.getElementById('miner-stat-status').style.color = '#555';

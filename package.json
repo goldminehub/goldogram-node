@@ -1,12 +1,12 @@
 {
   "name": "goldogram-node",
-  "version": "1.2.8",
+  "version": "1.2.9",
   "description": "Goldogram Full Node",
   "author": "Goldogram <support@goldminequant.org>",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
-    "test": "node --test test/node_args.test.js",
+    "test": "node --test test/node_args.test.js test/process_kill.test.js",
     "build:win": "electron-builder --win --x64",
     "build:mac": "electron-builder --mac --x64",
     "build:linux": "electron-builder --linux --x64"
