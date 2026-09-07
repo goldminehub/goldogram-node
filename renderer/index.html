@@ -328,7 +328,7 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
 
     <div class="panel" id="panel-mining">
       <div style="padding:20px;overflow-y:auto;flex:1;">
-        <div style="font-size:16px;font-weight:600;color:#D4AF37;margin-bottom:16px;">⛏️ Miner</div>
+        <div style="font-size:16px;font-weight:600;color:#D4AF37;margin-bottom:16px;">⛏️ Mine on this node</div>
 
         <!-- Sync Status -->
         <div id="mining-sync-banner" style="background:#1a1400;border:1px solid #2a2000;border-radius:8px;padding:12px 16px;margin-bottom:16px;display:none;">
@@ -342,10 +342,13 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
         <!-- Miner Config -->
         <div style="background:#0d0d0d;border:1px solid #1a1a1a;border-radius:8px;padding:16px;margin-bottom:16px;">
           <div style="font-size:12px;color:#555;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">Configuration</div>
-          <label style="font-size:12px;color:#666;display:block;margin-bottom:4px;">Mining Address (GoGX)</label>
-          <input id="miner-address" placeholder="GoXXX..." style="width:100%;background:#080808;border:1px solid #1a1a1a;border-radius:6px;padding:8px 12px;color:#e8e0cc;font-size:12px;font-family:monospace;outline:none;box-sizing:border-box;margin-bottom:12px;"/>
-          <label style="font-size:12px;color:#666;display:block;margin-bottom:4px;">API Node</label>
-          <input id="miner-api-node" value="http://goldminequant.org" style="width:100%;background:#080808;border:1px solid #1a1a1a;border-radius:6px;padding:8px 12px;color:#e8e0cc;font-size:12px;font-family:monospace;outline:none;box-sizing:border-box;"/>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#e8e0cc;margin-bottom:12px;cursor:pointer;">
+            <input type="checkbox" id="mine-on-node" style="accent-color:#D4AF37;"/>
+            Mine on this node
+          </label>
+          <label style="font-size:12px;color:#666;display:block;margin-bottom:4px;">Reward address (GoGX)</label>
+          <input id="miner-address" placeholder="GoXXX..." style="width:100%;background:#080808;border:1px solid #1a1a1a;border-radius:6px;padding:8px 12px;color:#e8e0cc;font-size:12px;font-family:monospace;outline:none;box-sizing:border-box;"/>
+          <div style="font-size:11px;color:#555;margin-top:8px;">Prefills from login. The full node mines on the local sled chain — no goldmine API submit.</div>
         </div>
 
         <!-- Miner Stats -->
@@ -363,8 +366,8 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
             <div style="font-size:10px;color:#444;text-transform:uppercase;margin-top:4px;">Mining Height</div>
           </div>
           <div style="background:#0d0d0d;border:1px solid #1a1a1a;border-radius:8px;padding:12px;text-align:center;">
-            <div id="miner-stat-reward" style="font-size:18px;font-weight:600;color:#D4AF37;">0</div>
-            <div style="font-size:10px;color:#444;text-transform:uppercase;margin-top:4px;">GoGX Earned</div>
+            <div id="miner-stat-reward" style="font-size:18px;font-weight:600;color:#D4AF37;">0 H/s</div>
+            <div style="font-size:10px;color:#444;text-transform:uppercase;margin-top:4px;">Hashrate</div>
           </div>
         </div>
 
@@ -529,7 +532,9 @@ async function startNode() {
   const validatorStake = document.getElementById('cfg-stake').value;
   addLog('Starting Goldogram Full Node...', 'info');
   if (validatorAddress) addLog('Validator mode: ' + validatorAddress, 'info');
-  const res = await window.node?.start({ url, datadir, seeds, validatorAddress, validatorStake });
+  const mine = document.getElementById('mine-on-node')?.checked;
+  const rewardAddress = document.getElementById('miner-address')?.value.trim();
+  const res = await window.node?.start({ url, datadir, seeds, validatorAddress, validatorStake, mine, rewardAddress });
   if (res?.error) { addLog('Error: ' + res.error, 'error'); return; }
   setRunning(true);
   addLog('Node started. Connecting to network...', 'success');
@@ -580,6 +585,27 @@ async function fetchStatus() {
     }
   }
   renderPeers(d.peer_list);
+
+  const mining = d.mining || {};
+  const mStatus = document.getElementById('miner-stat-status');
+  if (mStatus) {
+    if (mining.active) {
+      mStatus.textContent = 'Mining';
+      mStatus.style.color = '#4ade80';
+    } else if (document.getElementById('mine-on-node')?.checked) {
+      mStatus.textContent = d.sync_state === 'syncing' ? 'Paused (sync)' : 'Idle';
+      mStatus.style.color = '#D4AF37';
+    }
+  }
+  const mBlocks = document.getElementById('miner-stat-blocks');
+  if (mBlocks && mining.blocks_found != null) mBlocks.textContent = mining.blocks_found;
+  const mHash = document.getElementById('miner-stat-reward');
+  if (mHash && mining.hashrate != null) {
+    const hr = Number(mining.hashrate) || 0;
+    mHash.textContent = hr > 1e6 ? (hr / 1e6).toFixed(2) + ' MH/s' : hr.toLocaleString() + ' H/s';
+  }
+  const mHeight = document.getElementById('miner-stat-height');
+  if (mHeight && d.height != null) mHeight.textContent = Number(d.height).toLocaleString();
 }
 
 function renderPeers(list) {
@@ -751,6 +777,11 @@ async function setupLogin() {
       document.getElementById('setup-address-display').textContent = setupAddress;
       document.getElementById('validator-token').value = setupToken;
       document.getElementById('validator-address').value = setupAddress;
+      if (setupAddress) {
+        const minerAddr = document.getElementById('miner-address');
+        if (minerAddr) minerAddr.value = setupAddress;
+        localStorage.setItem('gog_address', setupAddress);
+      }
       document.getElementById('login-username').value = username;
       document.getElementById('setup-step-login').style.display = 'none';
       document.getElementById('setup-step-welcome').style.display = 'block';
@@ -793,42 +824,35 @@ let minerGoGXEarned = 0;
 
 async function startMiner() {
   const address = document.getElementById('miner-address').value.trim();
-  const apiNode = document.getElementById('miner-api-node').value.trim();
   if (!address) { addMinerLog('⚠️ Enter your GoGX address first'); return; }
-
-  // Check if node is synced first
-  const status = await window.node.getStatus();
-  if (status.ok) {
-    const chainHeight = status.data.height || 0;
-    const localHeight = parseInt(document.getElementById('miner-stat-height').textContent) || 0;
-    if (localHeight > 0 && localHeight < chainHeight - 10) {
-      addMinerLog('⏳ Waiting for sync to complete...');
-      showMinerSyncBanner(localHeight, chainHeight);
-      return;
-    }
-  }
-
-  const result = await window.miner.start({ address, apiNode });
-  if (result.error) { addMinerLog('❌ ' + result.error); return; }
-
+  const mineToggle = document.getElementById('mine-on-node');
+  if (mineToggle) mineToggle.checked = true;
+  localStorage.setItem('gog_address', address);
+  addMinerLog('⛏️ Starting full node with --mine --reward-address ' + address.slice(0, 14) + '...');
+  await window.node?.stop();
+  setRunning(false);
+  await startNode();
   minerRunning = true;
-  document.getElementById('miner-stat-status').textContent = 'Mining';
-  document.getElementById('miner-stat-status').style.color = '#4ade80';
+  document.getElementById('miner-stat-status').textContent = 'Starting';
+  document.getElementById('miner-stat-status').style.color = '#D4AF37';
   document.getElementById('btn-start-miner').disabled = true;
   document.getElementById('btn-stop-miner').disabled = false;
   document.getElementById('btn-stop-miner').style.color = '#fff';
-  addMinerLog('⛏️ Miner started — address: ' + address.slice(0, 14) + '...');
 }
 
 async function stopMiner() {
-  await window.miner.stop();
+  const mineToggle = document.getElementById('mine-on-node');
+  if (mineToggle) mineToggle.checked = false;
+  addMinerLog('⏹ Restarting node without mining');
+  await window.node?.stop();
+  setRunning(false);
+  await startNode();
   minerRunning = false;
   document.getElementById('miner-stat-status').textContent = 'Stopped';
   document.getElementById('miner-stat-status').style.color = '#555';
   document.getElementById('btn-start-miner').disabled = false;
   document.getElementById('btn-stop-miner').disabled = true;
   document.getElementById('btn-stop-miner').style.color = '#666';
-  addMinerLog('⏹ Miner stopped');
 }
 
 function addMinerLog(line) {
@@ -884,7 +908,9 @@ window.miner.onStopped((msg) => {
 // Auto-fill address from login session
 window.addEventListener('DOMContentLoaded', () => {
   const saved = localStorage.getItem('gog_address');
-  if (saved) document.getElementById('miner-address').value = saved;
+  if (saved && document.getElementById('miner-address')) {
+    document.getElementById('miner-address').value = saved;
+  }
 });
 
 

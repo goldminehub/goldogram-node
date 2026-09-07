@@ -76,7 +76,7 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
-ipcMain.handle('start-node', (event, { datadir, seeds, validatorAddress, validatorStake }) => {
+ipcMain.handle('start-node', (event, { datadir, seeds, validatorAddress, validatorStake, mine, rewardAddress }) => {
   if (nodeProcess) return { error: 'Node already running' };
   const binaryPath = getBinaryPath('goldogram-core');
   const args = ['node', '--fullnode'];
@@ -85,6 +85,10 @@ ipcMain.handle('start-node', (event, { datadir, seeds, validatorAddress, validat
     args.push('--validator-address', String(validatorAddress).trim());
     const stake = parseInt(validatorStake, 10);
     if (Number.isFinite(stake) && stake > 0) args.push('--stake', String(stake));
+  }
+  const reward = rewardAddress && String(rewardAddress).trim();
+  if (mine && reward) {
+    args.push('--mine', '--reward-address', reward);
   }
   const seedList = seeds && String(seeds).trim()
     ? String(seeds).split(/[\n,]+/).map((s) => s.trim()).filter(Boolean).join(',')
