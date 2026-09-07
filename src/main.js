@@ -3,6 +3,7 @@ const { autoUpdater } = require('electron-updater');
 const { spawn } = require('child_process');
 const path = require('path');
 const os = require('os');
+const { buildNodeArgs } = require('./node_args');
 
 let mainWindow;
 let nodeProcess = null;
@@ -79,29 +80,27 @@ app.on('window-all-closed', () => {
 ipcMain.handle('start-node', (event, { datadir, seeds, validatorAddress, validatorStake, mine, rewardAddress }) => {
   if (nodeProcess) return { error: 'Node already running' };
   const binaryPath = getBinaryPath('goldogram-core');
-  const args = ['node', '--fullnode'];
-  if (datadir) args.push('--datadir', datadir);
-  if (validatorAddress && String(validatorAddress).trim()) {
-    args.push('--validator-address', String(validatorAddress).trim());
-    const stake = parseInt(validatorStake, 10);
-    if (Number.isFinite(stake) && stake > 0) args.push('--stake', String(stake));
-  }
+  const args = buildNodeArgs({ datadir, validatorAddress, validatorStake, mine, rewardAddress });
   const reward = rewardAddress && String(rewardAddress).trim();
-  if (mine && reward) {
-    args.push('--mine', '--reward-address', reward);
-  }
+  console.log('[Node] spawn argv:', binaryPath, args.join(' '));
+  mainWindow?.webContents.send('node-log', { type: 'stdout', line: '[Node] spawn argv: ' + args.join(' ') });
   const seedList = seeds && String(seeds).trim()
     ? String(seeds).split(/[\n,]+/).map((s) => s.trim()).filter(Boolean).join(',')
     : DEFAULT_SEEDS;
-  nodeProcess = spawn(binaryPath, args, {
-    env: {
-      ...process.env,
-      SEED_NODES: seedList,
-      API_NODE: DEFAULT_API_NODES.split(',')[0],
-      API_NODES: DEFAULT_API_NODES,
-      ...(datadir ? { GOLDOGRAM_DATADIR: datadir } : {}),
-    }
-  });
+  const env = {
+    ...process.env,
+    SEED_NODES: seedList,
+    API_NODES: DEFAULT_API_NODES,
+    ...(datadir ? { GOLDOGRAM_DATADIR: datadir } : {}),
+  };
+  // Sovereign mine never reads API_NODE. Keep API_NODES for fullnode HTTP fallback sync only.
+  if (mine && reward) {
+    env.MINING_REWARD_ADDRESS = reward;
+    delete env.API_NODE;
+  } else {
+    env.API_NODE = DEFAULT_API_NODES.split(',')[0];
+  }
+  nodeProcess = spawn(binaryPath, args, { env });
   nodeProcess.stdout.on('data', (data) => {
     data.toString().split('\n').filter(Boolean).forEach(line => {
       mainWindow?.webContents.send('node-log', { type: 'stdout', line });
