@@ -234,7 +234,7 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
       <div style="padding:16px 16px 8px;flex-shrink:0;">
         <div class="section-title">Connected Peers</div>
         <div id="reach-row" style="margin-top:10px;font-size:13px;color:#888;">
-          Reachable: <span id="reach-value">—</span>
+          Connectivity: <span id="reach-value">—</span>
           <span id="reach-counts" style="margin-left:12px;color:#555;"></span>
         </div>
         <div id="reach-hint" style="margin-top:6px;font-size:12px;color:#666;"></div>
@@ -645,11 +645,15 @@ function renderReachability(d) {
   const hint = document.getElementById('reach-hint');
   const counts = document.getElementById('reach-counts');
   if (!v) return;
-  if (d.reachable === true) {
-    v.textContent = 'yes';
+  const kind = d.connectivity || (d.reachable === true ? 'direct' : d.reachable === false ? 'outbound-only' : '');
+  if (kind === 'direct') {
+    v.textContent = 'direct';
     v.style.color = '#4ade80';
-  } else if (d.reachable === false) {
-    v.textContent = 'no';
+  } else if (kind === 'punched') {
+    v.textContent = 'punched';
+    v.style.color = '#D4AF37';
+  } else if (kind === 'outbound-only') {
+    v.textContent = 'outbound-only';
     v.style.color = '#f87171';
   } else {
     v.textContent = '—';
