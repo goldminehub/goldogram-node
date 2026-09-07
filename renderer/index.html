@@ -665,6 +665,7 @@ function renderReachability(d) {
     if (d.outbound != null) parts.push('out ' + d.outbound);
     if (d.inbound != null) parts.push('in ' + d.inbound);
     if (d.book_size != null) parts.push('book ' + d.book_size);
+    if (d.lan_peers != null) parts.push('lan ' + d.lan_peers);
     counts.textContent = parts.join(' · ');
   }
   if (hint) hint.textContent = d.reachable ? '' : (d.nat_hint || '');
@@ -681,7 +682,8 @@ function renderPeers(list) {
   }
   container.innerHTML = list.map(p =>
     '<div class="peer-item">' +
-      '<div><div class="peer-addr">' + escHtml(p.addr || '?') + '</div>' +
+      '<div><div class="peer-addr">' + escHtml(p.addr || '?') +
+      (p.lan ? ' <span class="badge badge-green">LAN</span>' : '') + '</div>' +
       '<div class="peer-latency">node_id: ' + escHtml(p.node_id || '?') + '</div></div>' +
       '<div style="text-align:right;"><div class="peer-height">h=' + Number(p.height || 0).toLocaleString() + '</div>' +
       '<div class="peer-latency">' + escHtml(p.role || '?') + '</div></div>' +
