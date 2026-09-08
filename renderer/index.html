@@ -371,9 +371,34 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
             <div style="font-size:10px;color:#444;text-transform:uppercase;margin-top:4px;">Mining Height</div>
           </div>
           <div style="background:#0d0d0d;border:1px solid #1a1a1a;border-radius:8px;padding:12px;text-align:center;">
-            <div id="miner-stat-reward" style="font-size:18px;font-weight:600;color:#D4AF37;">0 H/s</div>
+            <div id="miner-stat-hashrate" style="font-size:18px;font-weight:600;color:#D4AF37;">0 H/s</div>
             <div style="font-size:10px;color:#444;text-transform:uppercase;margin-top:4px;">Hashrate</div>
           </div>
+          <div style="background:#0d0d0d;border:1px solid #1a1a1a;border-radius:8px;padding:12px;text-align:center;">
+            <div id="miner-stat-earned" style="font-size:18px;font-weight:600;color:#D4AF37;">0.0</div>
+            <div style="font-size:10px;color:#444;text-transform:uppercase;margin-top:4px;">Earned GoGX</div>
+          </div>
+          <div style="background:#0d0d0d;border:1px solid #1a1a1a;border-radius:8px;padding:12px;text-align:center;">
+            <div id="miner-stat-last" style="font-size:18px;font-weight:600;color:#D4AF37;">—</div>
+            <div style="font-size:10px;color:#444;text-transform:uppercase;margin-top:4px;">Last Block</div>
+          </div>
+        </div>
+
+        <div style="background:#0d0d0d;border:1px solid #1a1a1a;border-radius:8px;padding:12px;margin-bottom:16px;">
+          <div style="font-size:11px;color:#555;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Recent blocks</div>
+          <table style="width:100%;border-collapse:collapse;font-size:11px;font-family:monospace;color:#888;">
+            <thead>
+              <tr style="color:#555;text-align:left;">
+                <th style="padding:4px 6px;">Height</th>
+                <th style="padding:4px 6px;">Hash</th>
+                <th style="padding:4px 6px;">Reward</th>
+                <th style="padding:4px 6px;">Time</th>
+              </tr>
+            </thead>
+            <tbody id="miner-recent-blocks">
+              <tr><td colspan="4" style="padding:8px 6px;color:#444;">No blocks yet</td></tr>
+            </tbody>
+          </table>
         </div>
 
         <!-- Controls -->
@@ -440,6 +465,7 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
   </div>
 </div>
 
+<script src="mining_format.js"></script>
 <script>
 let running = false;
 let startTime = null;
@@ -533,6 +559,7 @@ function setRunning(val) {
     document.getElementById('stat-height-sub').textContent = 'Genesis: 0';
     document.getElementById('sync-state-text').innerHTML = '';
     document.getElementById('last-block-text').textContent = '';
+    setMiningStopped();
   }
 }
 
@@ -565,7 +592,7 @@ async function startNode() {
   }
   setRunning(true);
   addLog('Node started. Connecting to network...', 'success');
-  statusInterval = setInterval(fetchStatus, 3000);
+  statusInterval = setInterval(fetchStatus, 2000);
   fetchStatus();
   return res;
 }
@@ -578,6 +605,15 @@ async function stopNode() {
 
 async function fetchStatus() {
   const res = await window.node?.getStatus();
+  const childRunning = !!(running && res && res.running !== false);
+  if (!childRunning) {
+    const mStatus = document.getElementById('miner-stat-status');
+    if (mStatus) {
+      mStatus.textContent = 'Stopped';
+      mStatus.style.color = '#555';
+    }
+    if (!res?.ok) return;
+  }
   if (!res?.ok) return;
   const d = res.data;
   document.getElementById('stat-height').textContent = (d.height || 0).toLocaleString();
@@ -616,28 +652,59 @@ async function fetchStatus() {
   renderPeers(d.peer_list);
 
   const mining = d.mining || {};
+  const mf = window.MiningFormat || {};
   const mStatus = document.getElementById('miner-stat-status');
   if (mStatus) {
-    if (!running) {
-      mStatus.textContent = 'Stopped';
-      mStatus.style.color = '#555';
-    } else if (mining.active) {
-      mStatus.textContent = 'Mining';
-      mStatus.style.color = '#4ade80';
-    } else if (document.getElementById('mine-on-node')?.checked) {
-      mStatus.textContent = d.sync_state === 'syncing' ? 'Paused (sync)' : 'Idle';
-      mStatus.style.color = '#D4AF37';
-    }
+    const label = mf.miningStatusLabel ? mf.miningStatusLabel(childRunning, mining) : (!childRunning ? 'Stopped' : (mining.state || 'Idle'));
+    mStatus.textContent = label;
+    mStatus.style.color = label === 'Mining' ? '#4ade80' : label === 'Stopped' ? '#555' : '#D4AF37';
   }
   const mBlocks = document.getElementById('miner-stat-blocks');
   if (mBlocks && mining.blocks_found != null) mBlocks.textContent = mining.blocks_found;
-  const mHash = document.getElementById('miner-stat-reward');
+  const mHash = document.getElementById('miner-stat-hashrate') || document.getElementById('miner-stat-reward');
   if (mHash && mining.hashrate != null) {
-    const hr = Number(mining.hashrate) || 0;
-    mHash.textContent = hr > 1e6 ? (hr / 1e6).toFixed(2) + ' MH/s' : hr.toLocaleString() + ' H/s';
+    mHash.textContent = mf.formatHashrate ? mf.formatHashrate(mining.hashrate) : (Number(mining.hashrate) + ' H/s');
   }
   const mHeight = document.getElementById('miner-stat-height');
-  if (mHeight && d.height != null) mHeight.textContent = Number(d.height).toLocaleString();
+  if (mHeight) {
+    const mh = mining.mining_height || d.height;
+    mHeight.textContent = mh != null ? Number(mh).toLocaleString() : '—';
+  }
+  const mEarned = document.getElementById('miner-stat-earned');
+  if (mEarned) mEarned.textContent = mf.formatGoGX ? mf.formatGoGX(mining.total_reward_micro) : '0.0';
+  const mLast = document.getElementById('miner-stat-last');
+  if (mLast) mLast.textContent = mf.formatRelativeTime ? mf.formatRelativeTime(mining.last_block_at) : '—';
+  renderRecentMined(mining.recent_blocks);
+  const banner = document.getElementById('mining-sync-banner');
+  if (banner) {
+    if (running && mining.state === 'syncing' && d.network_height) {
+      showMinerSyncBanner(d.height || 0, d.network_height);
+    } else if (banner) {
+      banner.style.display = 'none';
+    }
+  }
+}
+
+function renderRecentMined(list) {
+  const tb = document.getElementById('miner-recent-blocks');
+  if (!tb) return;
+  const mf = window.MiningFormat || {};
+  if (!Array.isArray(list) || list.length === 0) {
+    tb.innerHTML = '<tr><td colspan="4" style="padding:8px 6px;color:#444;">No blocks yet</td></tr>';
+    return;
+  }
+  tb.innerHTML = list.map(function (b) {
+    const h = String(b.hash || '');
+    const short = h.length > 12 ? h.slice(0, 10) + '…' : h;
+    const reward = mf.formatGoGX ? mf.formatGoGX(b.reward_micro) : '';
+    const when = mf.formatRelativeTime ? mf.formatRelativeTime(b.ts) : '';
+    return '<tr>' +
+      '<td style="padding:4px 6px;color:#D4AF37;">' + Number(b.height || 0).toLocaleString() + '</td>' +
+      '<td style="padding:4px 6px;">' + escHtml(short) + '</td>' +
+      '<td style="padding:4px 6px;">' + escHtml(reward) + '</td>' +
+      '<td style="padding:4px 6px;">' + escHtml(when) + '</td>' +
+      '</tr>';
+  }).join('');
 }
 
 function renderReachability(d) {
@@ -724,6 +791,8 @@ if (window.node) {
       : line.toLowerCase().includes('block') || line.toLowerCase().includes('accept') ? 'success'
       : 'info';
     addLog(line, t);
+    const mf = window.MiningFormat;
+    if (mf && mf.isMinerLogLine(line)) addMinerLog(line);
   });
   window.node.onStopped((msg) => {
     setRunning(false);
@@ -930,28 +999,13 @@ function addMinerLog(line) {
   const el = document.getElementById('miner-logs');
   if (!el) return;
   const div = document.createElement('div');
-  const isBlock = line.includes('accepted') || line.includes('Block found');
-  div.style.color = isBlock ? '#D4AF37' : line.includes('❌') ? '#f87171' : '#666';
+  const isBlock = /\[Miner\] Block #/.test(line) || line.includes('mined hash=');
+  div.style.color = isBlock ? '#D4AF37' : line.includes('❌') ? '#f87171' : '#888';
   if (isBlock) div.style.fontWeight = '600';
   div.textContent = '[' + new Date().toLocaleTimeString() + '] ' + line;
   el.appendChild(div);
+  while (el.children.length > 200) el.removeChild(el.firstChild);
   el.scrollTop = el.scrollHeight;
-  if (el.children.length > 200) el.removeChild(el.firstChild);
-
-  // Parse mining stats from logs
-  const heightMatch = line.match(/Mining block (\d+)/);
-  if (heightMatch) {
-    document.getElementById('miner-stat-height').textContent = heightMatch[1];
-  }
-  if (line.includes('accepted')) {
-    minerBlocksFound++;
-    document.getElementById('miner-stat-blocks').textContent = minerBlocksFound;
-    const rewardMatch = line.match(/reward:(\d+)/);
-    if (rewardMatch) {
-      minerGoGXEarned += parseInt(rewardMatch[1]) / 1e6;
-      document.getElementById('miner-stat-reward').textContent = minerGoGXEarned.toFixed(2);
-    }
-  }
 }
 
 function showMinerSyncBanner(current, total) {

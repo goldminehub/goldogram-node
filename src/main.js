@@ -6,17 +6,25 @@ const os = require('os');
 const { buildNodeArgs } = require('./node_args');
 const {
   LOCK_GRACE_MS,
-  CORE_NAME_WIN,
   taskkillArgs,
-  parseWmicProcessCsv,
-  orphansFromAppBin,
+  parseWmicNamedCsv,
+  parseTasklistCsv,
+  parseNetstatAno,
+  parsePsPidComm,
+  parseSsLp,
+  selectNamedCoreOrphans,
+  selectGoldogramPortOrphans,
+  mergeKillTargets,
+  killTargetLogLine,
   waitForExit,
+  waitPidsGone,
   sleep,
 } = require('./process_kill');
 
 let mainWindow;
 let nodeProcess = null;
 let minerProcess = null;
+const pendingDashLogs = [];
 
 // Multiple seeds: DNS name first (survives IP changes), raw IP as fallback.
 // The node also remembers good peers in peers.dat and retries them at startup,
@@ -33,8 +41,87 @@ function getBinaryPath(name) {
     : path.join(__dirname, '../bin', binaryName);
 }
 
-function getBinaryDir() {
-  return path.dirname(getBinaryPath('goldogram-core'));
+function dashLog(line) {
+  const payload = { type: 'stdout', line: String(line) };
+  console.log(line);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('node-log', payload);
+  } else {
+    pendingDashLogs.push(payload);
+  }
+}
+
+function flushDashLogs() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  while (pendingDashLogs.length) {
+    mainWindow.webContents.send('node-log', pendingDashLogs.shift());
+  }
+}
+
+function skipSweepPids() {
+  const pids = [process.pid];
+  if (nodeProcess && nodeProcess.pid) pids.push(nodeProcess.pid);
+  if (minerProcess && minerProcess.pid) pids.push(minerProcess.pid);
+  return pids;
+}
+
+function listAllProcesses() {
+  if (process.platform === 'win32') {
+    const r = spawnSync(
+      'wmic',
+      ['process', 'get', 'ProcessId,Name,ExecutablePath', '/FORMAT:CSV'],
+      { encoding: 'utf8', windowsHide: true, timeout: 15000 }
+    );
+    const rows = parseWmicNamedCsv(r.stdout || '');
+    if (rows.length) return rows;
+    const t = spawnSync('tasklist', ['/FO', 'CSV', '/NH'], {
+      encoding: 'utf8',
+      windowsHide: true,
+      timeout: 15000,
+    });
+    return parseTasklistCsv(t.stdout || '');
+  }
+  const r = spawnSync('ps', ['-eo', 'pid=,comm='], { encoding: 'utf8', timeout: 8000 });
+  return parsePsPidComm(r.stdout || '');
+}
+
+function listPortListeners(procs) {
+  const byPid = new Map((procs || []).map((p) => [p.pid, p]));
+  if (process.platform === 'win32') {
+    const r = spawnSync('netstat', ['-ano', '-p', 'TCP'], {
+      encoding: 'utf8',
+      windowsHide: true,
+      timeout: 15000,
+    });
+    return parseNetstatAno(r.stdout || '').map((p) => {
+      const proc = byPid.get(p.pid) || {};
+      return { ...p, name: proc.name || proc.exePath || '', exePath: proc.exePath || '' };
+    });
+  }
+  const r = spawnSync('ss', ['-lptn'], { encoding: 'utf8', timeout: 8000 });
+  return parseSsLp(r.stdout || '').map((p) => {
+    if (p.name) return p;
+    const proc = byPid.get(p.pid) || {};
+    return { ...p, name: proc.name || '' };
+  });
+}
+
+function isPidAlive(pid) {
+  if (!pid) return false;
+  if (process.platform === 'win32') {
+    const r = spawnSync('tasklist', ['/FI', `PID eq ${pid}`, '/FO', 'CSV', '/NH'], {
+      encoding: 'utf8',
+      windowsHide: true,
+      timeout: 5000,
+    });
+    return String(r.stdout || '').includes(String(pid));
+  }
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function forceKillPid(pid) {
@@ -53,23 +140,19 @@ async function killChild(child) {
   await waitForExit(child);
 }
 
-function listWindowsCoreProcesses() {
-  const r = spawnSync(
-    'wmic',
-    ['process', 'where', `name='${CORE_NAME_WIN}'`, 'get', 'ProcessId,ExecutablePath', '/FORMAT:CSV'],
-    { encoding: 'utf8', windowsHide: true }
-  );
-  return parseWmicProcessCsv(r.stdout || '');
-}
-
-async function killAppCoreOrphans() {
-  const binDir = getBinaryDir();
-  if (process.platform === 'win32') {
-    for (const p of orphansFromAppBin(listWindowsCoreProcesses(), binDir)) {
-      if (nodeProcess && p.pid === nodeProcess.pid) continue;
-      if (minerProcess && p.pid === minerProcess.pid) continue;
-      forceKillPid(p.pid);
-    }
+async function killGoldogramOrphans() {
+  const skip = skipSweepPids();
+  const procs = listAllProcesses();
+  const named = selectNamedCoreOrphans(procs, skip);
+  const listeners = selectGoldogramPortOrphans(listPortListeners(procs), skip);
+  const targets = mergeKillTargets(named, listeners);
+  for (const t of targets) {
+    forceKillPid(t.pid);
+    dashLog(killTargetLogLine(t));
+  }
+  if (targets.length) {
+    await waitPidsGone(targets.map((t) => t.pid), isPidAlive);
+    dashLog('[Node] orphan sweep: killed ' + targets.length + ' process(es)');
   }
   await sleep(LOCK_GRACE_MS);
 }
@@ -109,10 +192,11 @@ function createWindow() {
     icon: path.join(__dirname, '../assets/icon.png'),
   });
   mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
+  mainWindow.webContents.once('did-finish-load', flushDashLogs);
 }
 
 app.whenReady().then(async () => {
-  await killAppCoreOrphans();
+  await killGoldogramOrphans();
   createWindow();
   // Check for updates after 3 seconds
   setTimeout(() => {
@@ -148,7 +232,7 @@ app.on('window-all-closed', () => {
 
 ipcMain.handle('start-node', async (event, { datadir, seeds, validatorAddress, validatorStake, mine, rewardAddress }) => {
   await stopTrackedNode();
-  await killAppCoreOrphans();
+  await killGoldogramOrphans();
   const binaryPath = getBinaryPath('goldogram-core');
   const args = buildNodeArgs({ datadir, validatorAddress, validatorStake, mine, rewardAddress });
   const reward = rewardAddress && String(rewardAddress).trim();
@@ -212,8 +296,9 @@ ipcMain.handle('stop-node', async () => {
   return { ok: true };
 });
 
-ipcMain.handle('start-miner', (event, { address, apiNode }) => {
+ipcMain.handle('start-miner', async (event, { address, apiNode }) => {
   if (minerProcess) return { error: 'Miner already running' };
+  await killGoldogramOrphans();
   const binaryPath = getBinaryPath('goldogram-core');
   minerProcess = spawn(binaryPath, ['node', '--mine'], {
     env: { ...process.env, MINER_ADDRESS: address, API_NODE: apiNode || 'http://goldminequant.org', SEED_NODES: DEFAULT_SEEDS }
@@ -241,12 +326,14 @@ ipcMain.handle('stop-miner', () => {
 });
 
 ipcMain.handle('get-status', async () => {
+  const running = !!(nodeProcess && nodeProcess.pid);
+  if (!running) return { ok: false, running: false };
   try {
     const res = await fetch('http://localhost:8080/api/status');
     const data = await res.json();
-    return { ok: true, data };
+    return { ok: true, running: true, data };
   } catch {
-    return { ok: false };
+    return { ok: false, running: true };
   }
 });
 
