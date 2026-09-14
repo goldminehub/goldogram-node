@@ -846,30 +846,36 @@ function v1Jwt() {
 
 async function refreshKeystoreStatus() {
   const el = document.getElementById('v1-ks-status');
+  const regBtn = document.querySelector('button[onclick="v1Register()"]');
   if (!el || !window.node?.keystoreList) return;
   try {
     const info = await window.node.keystoreList({ datadir: v1Datadir() });
     if (!info.addresses?.length) {
       el.textContent = 'No keystore at ' + (info.path || '~/.goldogram/keystore.json');
       el.style.color = '#f87171';
+      if (regBtn) regBtn.disabled = true;
       return;
     }
+    const addr = info.addresses[0];
     if (info.unlocked) {
-      el.textContent = 'Unlocked · ' + info.addresses.length + ' key(s) · ' + info.path;
+      el.textContent = 'Keystore: loaded (address ' + addr + ')';
       el.style.color = '#4ade80';
       const addrEl = document.getElementById('v1-address');
-      if (addrEl && !addrEl.value.trim()) addrEl.value = info.addresses[0];
+      if (addrEl && !addrEl.value.trim()) addrEl.value = addr;
+      if (regBtn) regBtn.disabled = false;
     } else {
-      el.textContent = 'Locked · ' + info.addresses.length + ' key(s) · unlock to sign';
+      el.textContent = 'Keystore on disk · locked — Unlock (address ' + addr + ')';
       el.style.color = '#888';
+      if (regBtn) regBtn.disabled = true;
     }
   } catch (e) {
     el.textContent = 'Keystore error: ' + e.message;
+    if (regBtn) regBtn.disabled = true;
   }
 }
 
 async function v1UnlockKeystore() {
-  const password = prompt('Unlock keystore password (DILITHIUM5_KEY_ENCRYPTION_KEY):', '');
+  const password = prompt('Unlock keystore password (same as login password):', '');
   if (password == null) return;
   v1Msg('Unlocking…', true);
   const res = await window.node?.keystoreUnlock({ datadir: v1Datadir(), password });
@@ -877,7 +883,7 @@ async function v1UnlockKeystore() {
     v1Msg(res?.error || 'Unlock failed', false);
     return;
   }
-  v1Msg('Keystore unlocked (' + (res.addresses || []).join(', ') + ')', true);
+  v1Msg('Keystore: loaded (address ' + ((res.addresses || [])[0] || '') + ')', true);
   await refreshKeystoreStatus();
 }
 
@@ -1010,6 +1016,11 @@ async function refreshValidatorV1() {
 }
 
 async function v1Register() {
+  const info = await window.node?.keystoreList?.({ datadir: v1Datadir() });
+  if (!info?.unlocked) {
+    v1Msg('Unlock the keystore before Register (and wait until synced).', false);
+    return;
+  }
   const amt = Number(document.getElementById('v1-amount')?.value || 0);
   if (amt < 1000) { v1Msg('Minimum stake is 1,000 GoGX.', false); return; }
   await v1SubmitSigned('ValidatorRegister', amt);
@@ -1062,7 +1073,35 @@ async function setupLogin() {
       if (setupAddress) {
         try { localStorage.setItem('gog_address', setupAddress); } catch (_) {}
       }
-      if (msg) msg.textContent = '';
+      // Auto-create ~/.goldogram/keystore.json (Argon2id) before node start.
+      try {
+        let pin;
+        const ensureOnce = async (pinVal) => window.node?.keystoreEnsure?.({
+          datadir: (document.getElementById('cfg-datadir') || {}).value || undefined,
+          token: setupToken,
+          password,
+          pin: pinVal,
+          apiBase: 'https://goldminequant.org',
+        });
+        let ks = await ensureOnce();
+        if (ks && !ks.ok && ks.needs_pin) {
+          pin = prompt('Transaction PIN required to create the validator keystore:', '');
+          if (pin) ks = await ensureOnce(pin);
+        }
+        if (ks && ks.ok) {
+          msg.style.color = '#4ade80';
+          msg.textContent = ks.created
+            ? 'Keystore created · ' + (ks.addresses && ks.addresses[0] ? ks.addresses[0] : setupAddress)
+            : 'Keystore ready';
+        } else if (ks && !ks.ok) {
+          msg.style.color = '#fbbf24';
+          msg.textContent = 'Logged in, but keystore: ' + (ks.error || 'failed');
+        }
+      } catch (e) {
+        msg.style.color = '#fbbf24';
+        msg.textContent = 'Logged in, keystore step: ' + e.message;
+      }
+      if (msg && !msg.textContent) msg.textContent = '';
     } else {
       msg.style.color='#f87171'; msg.textContent='❌ ' + (data.error || 'Login failed');
     }

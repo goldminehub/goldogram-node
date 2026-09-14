@@ -8,6 +8,7 @@ const {
   defaultKeystorePath,
   listKeystoreAddresses,
   signValidatorTx,
+  wrapKeystoreFile,
   expandHome,
 } = require('./keystore_sign');
 const {
@@ -238,14 +239,13 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
-ipcMain.handle('start-node', async (event, { datadir, seeds, validatorAddress, validatorStake, mine, rewardAddress, enableValidator }) => {
+ipcMain.handle('start-node', async (event, { datadir, seeds, validatorAddress, mine, rewardAddress, enableValidator }) => {
   await stopTrackedNode();
   await killGoldogramOrphans();
   const binaryPath = getBinaryPath('goldogram-core');
   const args = buildNodeArgs({
     datadir,
     validatorAddress,
-    validatorStake,
     mine,
     rewardAddress,
     enableValidator: !!enableValidator || !!String(validatorAddress || '').trim(),
@@ -364,11 +364,66 @@ ipcMain.handle('get-status', async () => {
 
 ipcMain.handle('keystore-list', async (_event, { datadir } = {}) => {
   const ksPath = defaultKeystorePath(datadir);
+  const addrs = listKeystoreAddresses(ksPath);
   return {
     path: ksPath,
-    addresses: listKeystoreAddresses(ksPath),
+    addresses: addrs,
     unlocked: !!(unlockedKeystore && unlockedKeystore.path === ksPath),
+    exists: addrs.length > 0 || require('fs').existsSync(ksPath),
   };
+});
+
+ipcMain.handle('keystore-ensure', async (_event, { datadir, token, password, pin, apiBase } = {}) => {
+  const ksPath = defaultKeystorePath(datadir);
+  const existing = listKeystoreAddresses(ksPath);
+  if (existing.length) {
+    return { ok: true, created: false, path: ksPath, addresses: existing };
+  }
+  if (!token || !password) {
+    return { ok: false, error: 'token and password required to create keystore' };
+  }
+  const base = (apiBase && String(apiBase).trim()) || 'https://goldminequant.org';
+  const body = { password };
+  if (pin) body.pin = String(pin);
+  let exported;
+  try {
+    const res = await fetch(`${base.replace(/\/$/, '')}/api/wallet/export-signing-key`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(body),
+    });
+    exported = await res.json();
+    if (!res.ok || !exported?.ok) {
+      return {
+        ok: false,
+        error: exported?.error || `export-signing-key HTTP ${res.status}`,
+        needs_pin: /pin/i.test(String(exported?.error || '')),
+      };
+    }
+  } catch (e) {
+    return { ok: false, error: String(e.message || e) };
+  }
+  const binaryPath = getBinaryPath('goldogram-core');
+  const wrap = wrapKeystoreFile({
+    binaryPath,
+    keystorePath: ksPath,
+    address: exported.address,
+    pkHex: exported.pk_hex,
+    skHex: exported.sk_hex,
+    password,
+  });
+  // Drop SK from memory as soon as wrap returns.
+  exported.sk_hex = undefined;
+  if (!wrap.ok) return wrap;
+  unlockedKeystore = { path: ksPath, password, addresses: [exported.address] };
+  mainWindow?.webContents.send('node-log', {
+    type: 'stdout',
+    line: `[Validator] keystore created at ${ksPath} (address ${exported.address})`,
+  });
+  return { ok: true, created: true, path: ksPath, addresses: [exported.address] };
 });
 
 ipcMain.handle('keystore-unlock', async (_event, { datadir, password } = {}) => {

@@ -23,9 +23,53 @@ function listKeystoreAddresses(keystorePath) {
   if (!fs.existsSync(p)) return [];
   try {
     const j = JSON.parse(fs.readFileSync(p, 'utf8'));
+    if (j && j.kdf === 'argon2id' && j.address) {
+      return [String(j.address)];
+    }
     return Object.keys(j.validators || {});
   } catch {
     return [];
+  }
+}
+
+/**
+ * Create Argon2id keystore via goldogram-core --wrap-keystore (never logs SK).
+ */
+function wrapKeystoreFile({
+  binaryPath,
+  keystorePath,
+  address,
+  pkHex,
+  skHex,
+  password,
+}) {
+  const outPath = expandHome(keystorePath);
+  const body = JSON.stringify({
+    address,
+    pk_hex: pkHex,
+    sk_hex: skHex,
+    password,
+  });
+  const r = spawnSync(binaryPath, ['--wrap-keystore', outPath], {
+    input: body,
+    encoding: 'utf8',
+    windowsHide: true,
+    timeout: 180000,
+  });
+  if (r.error) {
+    return { ok: false, error: String(r.error.message || r.error) };
+  }
+  if (r.status !== 0) {
+    return {
+      ok: false,
+      error: (r.stderr || r.stdout || `wrap-keystore exit ${r.status}`).trim(),
+    };
+  }
+  try {
+    const out = JSON.parse((r.stdout || '').trim());
+    return { ok: true, path: out.path || outPath, address: out.address || address };
+  } catch {
+    return { ok: true, path: outPath, address };
   }
 }
 
@@ -87,4 +131,5 @@ module.exports = {
   listKeystoreAddresses,
   expandHome,
   signValidatorTx,
+  wrapKeystoreFile,
 };

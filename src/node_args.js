@@ -5,11 +5,11 @@
  * Always --fullnode first (no dummy `node` subcommand). --mine is only
  * added together with --reward-address so the child cannot be Miner-without-sled.
  * `--validator` enables the attestation loop when a keystore + address exist.
+ * Legacy `--stake` (bootstrap PoS) is never passed — validators_v1 only.
  */
 function buildNodeArgs({
   datadir,
   validatorAddress,
-  validatorStake,
   mine,
   rewardAddress,
   enableValidator,
@@ -22,8 +22,6 @@ function buildNodeArgs({
   }
   if (vAddr) {
     args.push('--validator-address', vAddr);
-    const stake = parseInt(validatorStake, 10);
-    if (Number.isFinite(stake) && stake > 0) args.push('--stake', String(stake));
   }
   const reward = rewardAddress && String(rewardAddress).trim();
   if (mine && reward) {
