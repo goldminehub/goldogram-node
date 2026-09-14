@@ -417,48 +417,37 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
 
     <div class="panel" id="panel-validator">
       <div style="flex:1;overflow-y:auto;padding:16px;">
-
-        <!-- Bootstrap Stats -->
         <div style="background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:16px;margin-bottom:12px;">
-          <div style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">Bootstrap Program Stats</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
-            <div style="background:#0d0d0d;border-radius:6px;padding:10px;"><div style="font-size:10px;color:#444;margin-bottom:4px;text-transform:uppercase;">Slots Remaining</div><div style="font-size:18px;font-weight:600;color:#D4AF37;" id="bs-slots">—</div></div>
-            <div style="background:#0d0d0d;border-radius:6px;padding:10px;"><div style="font-size:10px;color:#444;margin-bottom:4px;text-transform:uppercase;">Active Validators</div><div style="font-size:18px;font-weight:600;color:#D4AF37;" id="bs-active">—</div></div>
-            <div style="background:#0d0d0d;border-radius:6px;padding:10px;"><div style="font-size:10px;color:#444;margin-bottom:4px;text-transform:uppercase;">Stake Required</div><div style="font-size:18px;font-weight:600;color:#4ade80;">10,000 GoGX</div></div>
-            <div style="background:#0d0d0d;border-radius:6px;padding:10px;"><div style="font-size:10px;color:#444;margin-bottom:4px;text-transform:uppercase;">Lock Period</div><div style="font-size:18px;font-weight:600;color:#60c8dc;">365 days</div></div>
+          <div style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">Validators v1</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div style="background:#0d0d0d;border-radius:6px;padding:10px;"><div style="font-size:10px;color:#444;margin-bottom:4px;text-transform:uppercase;">Status</div><div style="font-size:16px;font-weight:600;color:#D4AF37;" id="v1-status">—</div></div>
+            <div style="background:#0d0d0d;border-radius:6px;padding:10px;"><div style="font-size:10px;color:#444;margin-bottom:4px;text-transform:uppercase;">Stake</div><div style="font-size:16px;font-weight:600;color:#4ade80;" id="v1-stake">—</div></div>
+            <div style="background:#0d0d0d;border-radius:6px;padding:10px;"><div style="font-size:10px;color:#444;margin-bottom:4px;text-transform:uppercase;">Attested (last 100)</div><div style="font-size:16px;font-weight:600;color:#60c8dc;" id="v1-attest">—</div></div>
+            <div style="background:#0d0d0d;border-radius:6px;padding:10px;"><div style="font-size:10px;color:#444;margin-bottom:4px;text-transform:uppercase;">Rewards 24h / total</div><div style="font-size:14px;font-weight:600;color:#e8e0cc;" id="v1-rewards">—</div></div>
           </div>
-          <div style="background:#0a1a00;border:1px solid #1a3a00;border-radius:6px;padding:12px;font-size:12px;color:#4ade80;line-height:1.6;">
-            ⚡ Join the Validator Bootstrap Program. 10,000 GoGX allocated from Treasury, locked 1 year. Earn 40% of all block rewards immediately.
+          <div style="margin-top:10px;font-size:11px;color:#666;" id="v1-eligibility">Min stake: 1,000 GoGX · Unbond: 7 days (201,600 blocks). Attestation loop runs only when synced (≤2 blocks behind).</div>
+          <div style="margin-top:8px;font-size:11px;color:#888;" id="v1-unbond-remain"></div>
+        </div>
+
+        <div style="background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:16px;margin-bottom:12px;">
+          <div style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">Register / Stake</div>
+          <label style="font-size:12px;color:#666;display:block;margin-bottom:6px;">Validator address (Dilithium / reward)</label>
+          <input id="v1-address" placeholder="GoXXX..." style="width:100%;background:#0d0d0d;border:1px solid #1a1a1a;border-radius:6px;padding:8px 12px;color:#e8e0cc;font-size:12px;font-family:monospace;outline:none;box-sizing:border-box;margin-bottom:8px;"/>
+          <label style="font-size:12px;color:#666;display:block;margin-bottom:6px;">Amount (GoGX, min 1000)</label>
+          <input id="v1-amount" type="number" min="1000" value="1000" style="width:100%;background:#0d0d0d;border:1px solid #1a1a1a;border-radius:6px;padding:8px 12px;color:#e8e0cc;font-size:13px;outline:none;box-sizing:border-box;margin-bottom:8px;"/>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+            <button onclick="v1Register()" style="padding:10px;background:linear-gradient(135deg,#D4AF37,#A67C00);color:#000;font-weight:700;font-size:13px;border:none;border-radius:8px;cursor:pointer;">Register</button>
+            <button onclick="v1AddStake()" style="padding:10px;background:#1a1200;color:#D4AF37;border:1px solid #2a2000;border-radius:8px;cursor:pointer;font-weight:600;">Add stake</button>
           </div>
+          <button onclick="v1Unbond()" style="width:100%;padding:10px;background:#151515;color:#f87171;border:1px solid #331111;border-radius:8px;cursor:pointer;font-size:13px;">Unbond (7-day lock)</button>
+          <div id="v1-msg" style="font-size:12px;text-align:center;margin-top:10px;color:#888;"></div>
         </div>
 
-        <!-- Login -->
-        <div style="background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:16px;margin-bottom:12px;">
-          <div style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">Login to Goldogram</div>
-          <input id="login-username" placeholder="Username" style="width:100%;background:#0d0d0d;border:1px solid #1a1a1a;border-radius:6px;padding:8px 12px;color:#e8e0cc;font-size:13px;outline:none;box-sizing:border-box;margin-bottom:8px;"/>
-          <input id="login-password" type="password" placeholder="Password" style="width:100%;background:#0d0d0d;border:1px solid #1a1a1a;border-radius:6px;padding:8px 12px;color:#e8e0cc;font-size:13px;outline:none;box-sizing:border-box;margin-bottom:8px;"/>
-          <button onclick="loginAndGetToken()" style="width:100%;padding:10px;background:#1a1200;color:#D4AF37;border:1px solid #2a2000;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;">Login → Auto-fill Token</button>
-          <div id="login-msg" style="margin-top:8px;font-size:11px;text-align:center;"></div>
-        </div>
-
-        <!-- Become Validator -->
-        <div style="background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:16px;margin-bottom:12px;">
-          <div style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">Become a Validator</div>
-          <label style="font-size:12px;color:#666;display:block;margin-bottom:6px;">Your GoGX Address</label>
-          <input id="validator-address" placeholder="GoXXX..." style="width:100%;background:#0d0d0d;border:1px solid #1a1a1a;border-radius:6px;padding:8px 12px;color:#e8e0cc;font-size:12px;font-family:monospace;outline:none;box-sizing:border-box;margin-bottom:8px;"/>
-          <label style="font-size:12px;color:#666;display:block;margin-bottom:6px;">Auth Token (JWT)</label>
-          <input id="validator-token" type="password" placeholder="eyJ..." style="width:100%;background:#0d0d0d;border:1px solid #1a1a1a;border-radius:6px;padding:8px 12px;color:#e8e0cc;font-size:13px;outline:none;box-sizing:border-box;margin-bottom:8px;"/>
-          <button onclick="joinBootstrap()" style="width:100%;padding:12px;background:linear-gradient(135deg,#D4AF37,#A67C00);color:#000;font-weight:700;font-size:14px;border:none;border-radius:8px;cursor:pointer;margin-bottom:6px;">Become Validator — Join Bootstrap Program</button>
-          <div id="validator-msg" style="font-size:12px;text-align:center;margin-top:8px;"></div>
-        </div>
-
-        <!-- Validator Status -->
         <div style="background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:16px;">
-          <div style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">Validator Status</div>
-          <button onclick="checkValidatorStatus()" style="width:100%;padding:10px;background:#151515;color:#888;border:1px solid #222;border-radius:6px;cursor:pointer;font-size:13px;margin-bottom:10px;">Check My Validator Status</button>
-          <div id="validator-status" style="font-size:12px;color:#555;text-align:center;">Login above then check status.</div>
+          <div style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Network</div>
+          <div style="font-size:12px;color:#888;" id="v1-network">Finalized: — · Active validators: — · Activation height: —</div>
+          <button onclick="refreshValidatorV1()" style="margin-top:10px;width:100%;padding:8px;background:#151515;color:#888;border:1px solid #222;border-radius:6px;cursor:pointer;font-size:12px;">Refresh</button>
         </div>
-
       </div>
     </div>
 
@@ -804,89 +793,83 @@ if (window.node) {
   loadSysinfo();
 }
 
-addLog('Goldogram Full Node v1.2.15 ready.', 'success');
+addLog('Goldogram Full Node v1.2.16 ready.', 'success');
 addLog('1 GoGX = 1 gram of gold. Quantum-secure.', 'info');
 
 const API = 'https://goldminequant.org';
+const LOCAL = 'http://localhost:8080';
 
-async function loginAndGetToken() {
-  const username = document.getElementById('login-username').value.trim();
-  const password = document.getElementById('login-password').value.trim();
-  const msg = document.getElementById('login-msg');
-  if (!username || !password) { msg.style.color='#f87171'; msg.textContent='Enter username and password.'; return; }
-  msg.style.color='#D4AF37'; msg.textContent='Logging in...';
+function v1Msg(text, ok) {
+  const el = document.getElementById('v1-msg');
+  if (!el) return;
+  el.style.color = ok ? '#4ade80' : '#f87171';
+  el.textContent = text;
+}
+
+async function refreshValidatorV1() {
   try {
-    const res = await fetch(API + '/api/auth/login', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({username, password})
-    });
-    const data = await res.json();
-    if (data.token) {
-      document.getElementById('validator-token').value = data.token;
-      if (data.wallet && data.wallet.gog_address) {
-        document.getElementById('validator-address').value = data.wallet.gog_address;
-      }
-      msg.style.color='#4ade80'; msg.textContent='✅ Logged in! Token and address filled automatically.';
-    } else {
-      msg.style.color='#f87171'; msg.textContent='❌ ' + (data.error || 'Login failed');
+    const [st, vl] = await Promise.all([
+      fetch(LOCAL + '/api/status').then(r => r.json()).catch(() => null),
+      fetch(LOCAL + '/api/validators').then(r => r.json()).catch(() =>
+        fetch(API + '/api/validators').then(r => r.json()).catch(() => null)),
+    ]);
+    const net = document.getElementById('v1-network');
+    if (net && st) {
+      net.textContent = 'Finalized: ' + (st.finalized_height ?? 0) +
+        ' · Active validators: ' + (st.active_validators ?? 0) +
+        ' · Activation height: ' + (st.validators_activation_height ?? 'disabled');
     }
-  } catch(e) { msg.style.color='#f87171'; msg.textContent='❌ ' + e.message; }
-}
-
-async function joinBootstrap() {
-  const token = document.getElementById('validator-token').value.trim();
-  const msg = document.getElementById('validator-msg');
-  if (!token) { msg.style.color='#f87171'; msg.textContent='Login first to get your token.'; return; }
-  msg.style.color='#D4AF37'; msg.textContent='Joining bootstrap program...';
-  try {
-    const res = await fetch(API + '/api/validator/join', {
-      method: 'POST',
-      headers: {'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json'}
-    });
-    const data = await res.json();
-    if (data.ok) {
-      msg.style.color='#4ade80'; msg.textContent='✅ ' + data.message;
-      loadBootstrapStats();
-    } else {
-      msg.style.color='#f87171'; msg.textContent='❌ ' + (data.error || 'Failed');
+    const addr = (document.getElementById('v1-address')?.value || '').trim()
+      || (document.getElementById('miner-address')?.value || '').trim();
+    if (addr && document.getElementById('v1-address') && !document.getElementById('v1-address').value) {
+      document.getElementById('v1-address').value = addr;
     }
-  } catch(e) { msg.style.color='#f87171'; msg.textContent='❌ ' + e.message; }
-}
-
-async function checkValidatorStatus() {
-  const token = document.getElementById('validator-token').value.trim();
-  const statusEl = document.getElementById('validator-status');
-  if (!token) { statusEl.textContent='Login first.'; return; }
-  try {
-    const res = await fetch(API + '/api/validator/status', {
-      headers: {'Authorization': 'Bearer ' + token}
-    });
-    const data = await res.json();
-    if (data.is_validator) {
-      statusEl.innerHTML = '<span style="color:#4ade80">✅ Active Validator</span><br>' +
-        '<span style="color:#D4AF37">Stake: ' + (data.stake_gog||10000).toLocaleString() + ' GoGX</span><br>' +
-        '<span style="color:#666">Days remaining: ' + data.days_remaining + '</span><br>' +
-        '<span style="color:#666">Unlock at block: ' + (data.unlock_height||0).toLocaleString() + '</span>';
-    } else {
-      statusEl.innerHTML = '<span style="color:#888">Not a validator yet. Join the bootstrap program above.</span>';
+    const mine = (vl?.validators || []).find(v => v.address === addr);
+    const set = (id, t) => { const e = document.getElementById(id); if (e) e.textContent = t; };
+    if (!mine) {
+      set('v1-status', 'inactive');
+      set('v1-stake', '0 GoGX');
+      set('v1-attest', '—');
+      set('v1-rewards', '0 / 0');
+      set('v1-unbond-remain', '');
+      return;
     }
-  } catch(e) { statusEl.textContent='Error: ' + e.message; }
+    set('v1-status', mine.status || (mine.active ? 'active' : 'inactive'));
+    set('v1-stake', ((mine.stake_gog ?? (mine.stake || 0) / 1e6)).toLocaleString() + ' GoGX');
+    set('v1-attest', (mine.uptime_percent != null ? Number(mine.uptime_percent).toFixed(1) : '—') + '%');
+    const r24 = ((mine.rewards_24h_micro || 0) / 1e6).toFixed(2);
+    const rtot = ((mine.rewards_total_micro || 0) / 1e6).toFixed(2);
+    set('v1-rewards', r24 + ' / ' + rtot + ' GoGX');
+    if (mine.unbond_remaining != null) {
+      set('v1-unbond-remain', 'Unbonding: ' + mine.unbond_remaining + ' blocks remaining');
+    } else {
+      set('v1-unbond-remain', '');
+    }
+  } catch (e) {
+    v1Msg('Refresh failed: ' + e.message, false);
+  }
 }
 
-async function loadBootstrapStats() {
-  try {
-    const res = await fetch(API + '/api/validator/bootstrap/stats');
-    const data = await res.json();
-    const s = document.getElementById('bs-slots');
-    const a = document.getElementById('bs-active');
-    if (s) s.textContent = data.slots_remaining ?? '—';
-    if (a) a.textContent = data.active_bootstrap_validators ?? '—';
-  } catch(e) {}
+function v1Register() {
+  const amt = Number(document.getElementById('v1-amount')?.value || 0);
+  if (amt < 1000) { v1Msg('Minimum stake is 1,000 GoGX.', false); return; }
+  v1Msg('Register tx: build+sign with ~/.goldogram/keystore.json via core (Validators v1). Use CLI/API until desktop signing ships end-to-end — stake amount recorded for UI.', false);
+  addLog('[Validator] Register requested amount=' + amt + ' GoGX (activation-gated)', 'info');
+}
+function v1AddStake() {
+  const amt = Number(document.getElementById('v1-amount')?.value || 0);
+  if (amt <= 0) { v1Msg('Enter a positive amount.', false); return; }
+  v1Msg('Add-stake requested for ' + amt + ' GoGX (submit via signed ValidatorAddStake tx).', false);
+  addLog('[Validator] Add stake ' + amt, 'info');
+}
+function v1Unbond() {
+  if (!confirm('Unbond starts a 7-day (201,600 block) unlock. No attestations count during unbonding. Continue?')) return;
+  v1Msg('Unbond requested (ValidatorUnbond tx).', false);
+  addLog('[Validator] Unbond requested', 'info');
 }
 
-loadBootstrapStats();
-setInterval(loadBootstrapStats, 30000);
+refreshValidatorV1();
+setInterval(refreshValidatorV1, 15000);
 
 let setupToken = '';
 let setupAddress = '';
