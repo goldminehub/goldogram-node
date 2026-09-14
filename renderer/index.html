@@ -1024,9 +1024,6 @@ async function v1Unbond() {
   await v1SubmitSigned('ValidatorUnbond', 0);
 }
 
-refreshValidatorV1();
-setInterval(refreshValidatorV1, 15000);
-
 let setupToken = '';
 let setupAddress = '';
 let setupUsername = '';
