@@ -468,6 +468,7 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
   </div>
 </div>
 
+<script src="setup_login.js"></script>
 <script src="mining_format.js"></script>
 <script>
 let running = false;
@@ -481,6 +482,7 @@ function showPanel(name) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('panel-' + name).classList.add('active');
   event.currentTarget.classList.add('active');
+  if (name === 'validator') ensureValidatorTabInit();
 }
 
 function addLog(line, type = 'info') {
@@ -812,7 +814,7 @@ if (window.node) {
   loadSysinfo();
 }
 
-addLog('Goldogram Full Node v1.2.17 ready.', 'success');
+addLog('Goldogram Full Node v1.2.18 ready.', 'success');
 addLog('1 GoGX = 1 gram of gold. Quantum-secure.', 'info');
 
 const API = 'https://goldminequant.org';
@@ -1028,6 +1030,17 @@ setInterval(refreshValidatorV1, 15000);
 let setupToken = '';
 let setupAddress = '';
 let setupUsername = '';
+let validatorTabReady = false;
+let validatorRefreshTimer = null;
+
+function ensureValidatorTabInit() {
+  if (validatorTabReady) return;
+  validatorTabReady = true;
+  void refreshValidatorV1();
+  if (!validatorRefreshTimer) {
+    validatorRefreshTimer = setInterval(refreshValidatorV1, 15000);
+  }
+}
 
 async function setupLogin() {
   const username = document.getElementById('setup-username').value.trim();
@@ -1043,24 +1056,16 @@ async function setupLogin() {
     });
     const data = await res.json();
     if (data.token) {
-      setupToken = data.token;
-      const jwtEl = document.getElementById('v1-jwt');
-      if (jwtEl) jwtEl.value = setupToken;
-      setupAddress = data.wallet && data.wallet.gog_address ? data.wallet.gog_address : '';
-      setupUsername = data.user && data.user.username ? data.user.username : username;
-      document.getElementById('setup-username-display').textContent = setupUsername;
-      document.getElementById('setup-address-display').textContent = setupAddress;
-      document.getElementById('validator-token').value = setupToken;
-      document.getElementById('validator-address').value = setupAddress;
+      const applied = (window.GoldogramSetupLogin || {}).applySetupLoginSuccess
+        ? window.GoldogramSetupLogin.applySetupLoginSuccess(document, data, username)
+        : null;
+      setupToken = (applied && applied.token) || data.token;
+      setupAddress = (applied && applied.address) || (data.wallet && data.wallet.gog_address) || '';
+      setupUsername = (applied && applied.username) || username;
       if (setupAddress) {
-        const minerAddr = document.getElementById('miner-address');
-        if (minerAddr) minerAddr.value = setupAddress;
-        localStorage.setItem('gog_address', setupAddress);
+        try { localStorage.setItem('gog_address', setupAddress); } catch (_) {}
       }
-      document.getElementById('login-username').value = username;
-      document.getElementById('setup-step-login').style.display = 'none';
-      document.getElementById('setup-step-welcome').style.display = 'block';
-      msg.textContent = '';
+      if (msg) msg.textContent = '';
     } else {
       msg.style.color='#f87171'; msg.textContent='❌ ' + (data.error || 'Login failed');
     }
