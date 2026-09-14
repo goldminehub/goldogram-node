@@ -6,6 +6,10 @@ contextBridge.exposeInMainWorld('node', {
   getSysinfo: () => ipcRenderer.invoke('get-sysinfo'),
   onLog: (cb) => ipcRenderer.on('node-log', (_, msg) => cb(msg)),
   onStopped: (cb) => ipcRenderer.on('node-stopped', (_, msg) => cb(msg)),
+  keystoreList: (opts) => ipcRenderer.invoke('keystore-list', opts),
+  keystoreUnlock: (opts) => ipcRenderer.invoke('keystore-unlock', opts),
+  keystoreLock: () => ipcRenderer.invoke('keystore-lock'),
+  signValidatorTx: (opts) => ipcRenderer.invoke('sign-validator-tx', opts),
 });
 contextBridge.exposeInMainWorld('updater', {
   check: () => ipcRenderer.invoke('check-update'),

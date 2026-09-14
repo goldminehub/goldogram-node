@@ -422,6 +422,8 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
             <div style="background:#0d0d0d;border-radius:6px;padding:10px;"><div style="font-size:10px;color:#444;margin-bottom:4px;text-transform:uppercase;">Status</div><div style="font-size:16px;font-weight:600;color:#D4AF37;" id="v1-status">—</div></div>
             <div style="background:#0d0d0d;border-radius:6px;padding:10px;"><div style="font-size:10px;color:#444;margin-bottom:4px;text-transform:uppercase;">Stake</div><div style="font-size:16px;font-weight:600;color:#4ade80;" id="v1-stake">—</div></div>
+            <div style="background:#0d0d0d;border-radius:6px;padding:10px;"><div style="font-size:10px;color:#444;margin-bottom:4px;text-transform:uppercase;">Attesting</div><div style="font-size:16px;font-weight:600;color:#60c8dc;" id="v1-attesting">—</div></div>
+            <div style="background:#0d0d0d;border-radius:6px;padding:10px;"><div style="font-size:10px;color:#444;margin-bottom:4px;text-transform:uppercase;">Last attested</div><div style="font-size:16px;font-weight:600;color:#e8e0cc;" id="v1-last-attest">—</div></div>
             <div style="background:#0d0d0d;border-radius:6px;padding:10px;"><div style="font-size:10px;color:#444;margin-bottom:4px;text-transform:uppercase;">Attested (last 100)</div><div style="font-size:16px;font-weight:600;color:#60c8dc;" id="v1-attest">—</div></div>
             <div style="background:#0d0d0d;border-radius:6px;padding:10px;"><div style="font-size:10px;color:#444;margin-bottom:4px;text-transform:uppercase;">Rewards 24h / total</div><div style="font-size:14px;font-weight:600;color:#e8e0cc;" id="v1-rewards">—</div></div>
           </div>
@@ -430,17 +432,29 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
         </div>
 
         <div style="background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:16px;margin-bottom:12px;">
+          <div style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">Keystore</div>
+          <div style="font-size:12px;color:#888;margin-bottom:8px;" id="v1-ks-status">Locked — unlock ~/.goldogram/keystore.json to sign</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <button onclick="v1UnlockKeystore()" style="padding:10px;background:#1a1200;color:#D4AF37;border:1px solid #2a2000;border-radius:8px;cursor:pointer;font-weight:600;">Unlock</button>
+            <button onclick="v1LockKeystore()" style="padding:10px;background:#151515;color:#888;border:1px solid #222;border-radius:8px;cursor:pointer;">Lock</button>
+          </div>
+        </div>
+
+        <div style="background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:16px;margin-bottom:12px;">
           <div style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">Register / Stake</div>
           <label style="font-size:12px;color:#666;display:block;margin-bottom:6px;">Validator address (Dilithium / reward)</label>
           <input id="v1-address" placeholder="GoXXX..." style="width:100%;background:#0d0d0d;border:1px solid #1a1a1a;border-radius:6px;padding:8px 12px;color:#e8e0cc;font-size:12px;font-family:monospace;outline:none;box-sizing:border-box;margin-bottom:8px;"/>
           <label style="font-size:12px;color:#666;display:block;margin-bottom:6px;">Amount (GoGX, min 1000)</label>
           <input id="v1-amount" type="number" min="1000" value="1000" style="width:100%;background:#0d0d0d;border:1px solid #1a1a1a;border-radius:6px;padding:8px 12px;color:#e8e0cc;font-size:13px;outline:none;box-sizing:border-box;margin-bottom:8px;"/>
+          <label style="font-size:12px;color:#666;display:block;margin-bottom:6px;">API JWT (from Setup login — required to submit)</label>
+          <input id="v1-jwt" type="password" placeholder="Bearer token" style="width:100%;background:#0d0d0d;border:1px solid #1a1a1a;border-radius:6px;padding:8px 12px;color:#e8e0cc;font-size:12px;outline:none;box-sizing:border-box;margin-bottom:8px;"/>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
             <button onclick="v1Register()" style="padding:10px;background:linear-gradient(135deg,#D4AF37,#A67C00);color:#000;font-weight:700;font-size:13px;border:none;border-radius:8px;cursor:pointer;">Register</button>
             <button onclick="v1AddStake()" style="padding:10px;background:#1a1200;color:#D4AF37;border:1px solid #2a2000;border-radius:8px;cursor:pointer;font-weight:600;">Add stake</button>
           </div>
           <button onclick="v1Unbond()" style="width:100%;padding:10px;background:#151515;color:#f87171;border:1px solid #331111;border-radius:8px;cursor:pointer;font-size:13px;">Unbond (7-day lock)</button>
           <div id="v1-msg" style="font-size:12px;text-align:center;margin-top:10px;color:#888;"></div>
+          <div id="v1-txid" style="font-size:11px;text-align:center;margin-top:6px;color:#666;font-family:monospace;word-break:break-all;"></div>
         </div>
 
         <div style="background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:16px;">
@@ -566,13 +580,18 @@ async function startNode() {
   const url = document.getElementById('cfg-url').value;
   const datadir = document.getElementById('cfg-datadir').value;
   const seeds = document.getElementById('cfg-bootstrap').value;
-  const validatorAddress = document.getElementById('cfg-validator').value.trim();
+  const validatorAddress = document.getElementById('cfg-validator').value.trim()
+    || document.getElementById('v1-address')?.value.trim()
+    || '';
   const validatorStake = document.getElementById('cfg-stake').value;
   addLog('Starting Goldogram Full Node...', 'info');
   if (validatorAddress) addLog('Validator mode: ' + validatorAddress, 'info');
   const mine = document.getElementById('mine-on-node')?.checked;
   const rewardAddress = document.getElementById('miner-address')?.value.trim();
-  const res = await window.node?.start({ url, datadir, seeds, validatorAddress, validatorStake, mine, rewardAddress });
+  const enableValidator = !!validatorAddress;
+  const res = await window.node?.start({
+    url, datadir, seeds, validatorAddress, validatorStake, mine, rewardAddress, enableValidator,
+  });
   if (res?.error) {
     addLog('Error: ' + res.error, 'error');
     setRunning(false);
@@ -793,11 +812,12 @@ if (window.node) {
   loadSysinfo();
 }
 
-addLog('Goldogram Full Node v1.2.16 ready.', 'success');
+addLog('Goldogram Full Node v1.2.17 ready.', 'success');
 addLog('1 GoGX = 1 gram of gold. Quantum-secure.', 'info');
 
 const API = 'https://goldminequant.org';
 const LOCAL = 'http://localhost:8080';
+const FEE_MICRO = 1000;
 
 function v1Msg(text, ok) {
   const el = document.getElementById('v1-msg');
@@ -806,7 +826,135 @@ function v1Msg(text, ok) {
   el.textContent = text;
 }
 
+function v1TxId(text) {
+  const el = document.getElementById('v1-txid');
+  if (el) el.textContent = text || '';
+}
+
+function v1Datadir() {
+  return document.getElementById('cfg-datadir')?.value || '';
+}
+
+function v1Jwt() {
+  return (document.getElementById('v1-jwt')?.value
+    || document.getElementById('validator-token')?.value
+    || setupToken
+    || '').trim();
+}
+
+async function refreshKeystoreStatus() {
+  const el = document.getElementById('v1-ks-status');
+  if (!el || !window.node?.keystoreList) return;
+  try {
+    const info = await window.node.keystoreList({ datadir: v1Datadir() });
+    if (!info.addresses?.length) {
+      el.textContent = 'No keystore at ' + (info.path || '~/.goldogram/keystore.json');
+      el.style.color = '#f87171';
+      return;
+    }
+    if (info.unlocked) {
+      el.textContent = 'Unlocked · ' + info.addresses.length + ' key(s) · ' + info.path;
+      el.style.color = '#4ade80';
+      const addrEl = document.getElementById('v1-address');
+      if (addrEl && !addrEl.value.trim()) addrEl.value = info.addresses[0];
+    } else {
+      el.textContent = 'Locked · ' + info.addresses.length + ' key(s) · unlock to sign';
+      el.style.color = '#888';
+    }
+  } catch (e) {
+    el.textContent = 'Keystore error: ' + e.message;
+  }
+}
+
+async function v1UnlockKeystore() {
+  const password = prompt('Unlock keystore password (DILITHIUM5_KEY_ENCRYPTION_KEY):', '');
+  if (password == null) return;
+  v1Msg('Unlocking…', true);
+  const res = await window.node?.keystoreUnlock({ datadir: v1Datadir(), password });
+  if (!res?.ok) {
+    v1Msg(res?.error || 'Unlock failed', false);
+    return;
+  }
+  v1Msg('Keystore unlocked (' + (res.addresses || []).join(', ') + ')', true);
+  await refreshKeystoreStatus();
+}
+
+async function v1LockKeystore() {
+  await window.node?.keystoreLock();
+  v1Msg('Keystore locked', true);
+  await refreshKeystoreStatus();
+}
+
+function friendlySubmitError(body) {
+  const err = (body && (body.error || body.message)) || '';
+  const s = String(err).toLowerCase();
+  if (s.includes('already registered')) return 'Already registered';
+  if (s.includes('below') || s.includes('min stake') || s.includes('minimum stake')) return 'Below min stake (1,000 GoGX)';
+  if (s.includes('insufficient')) return 'Insufficient balance';
+  return err || 'Submit failed';
+}
+
+async function v1SubmitSigned(txType, amountGog) {
+  const addr = (document.getElementById('v1-address')?.value || '').trim();
+  if (!addr) { v1Msg('Enter validator address', false); return; }
+  const jwt = v1Jwt();
+  if (!jwt) { v1Msg('API JWT required (Setup login or paste token)', false); return; }
+  const amountMicro = Math.round(Number(amountGog || 0) * 1e6);
+  v1Msg('Fetching nonce…', true);
+  v1TxId('');
+  let nextNonce = 1;
+  try {
+    const nr = await fetch(API + '/api/wallet/nonce/' + encodeURIComponent(addr));
+    const nj = await nr.json();
+    nextNonce = Number(nj.next_nonce ?? ((nj.nonce || 0) + 1)) || 1;
+  } catch (e) {
+    v1Msg('Nonce fetch failed: ' + e.message, false);
+    return;
+  }
+  v1Msg('Signing ' + txType + '…', true);
+  const signed = await window.node?.signValidatorTx({
+    datadir: v1Datadir(),
+    address: addr,
+    txType,
+    amountMicro: txType === 'ValidatorUnbond' ? 0 : amountMicro,
+    feeMicro: FEE_MICRO,
+    nonce: nextNonce,
+  });
+  if (!signed?.ok) {
+    v1Msg(signed?.error || 'Sign failed', false);
+    addLog('[Validator] sign failed: ' + (signed?.error || ''), 'error');
+    return;
+  }
+  v1Msg('Submitting…', true);
+  try {
+    const res = await fetch(API + '/api/submit_tx', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + jwt,
+      },
+      body: JSON.stringify(signed.tx),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok || body.error) {
+      const msg = friendlySubmitError(body);
+      v1Msg(msg, false);
+      v1TxId(body.tx_id ? 'tx: ' + body.tx_id : '');
+      addLog('[Validator] submit error: ' + msg, 'error');
+      return;
+    }
+    const tid = body.tx_id || signed.tx?.tx_id || '';
+    v1Msg((body.status || 'pending') + ' · ' + txType, true);
+    v1TxId(tid ? 'tx id: ' + tid : '');
+    addLog('[Validator] ' + txType + ' submitted ' + tid, 'success');
+    setTimeout(refreshValidatorV1, 2000);
+  } catch (e) {
+    v1Msg('Submit network error: ' + e.message, false);
+  }
+}
+
 async function refreshValidatorV1() {
+  await refreshKeystoreStatus();
   try {
     const [st, vl] = await Promise.all([
       fetch(LOCAL + '/api/status').then(r => r.json()).catch(() => null),
@@ -819,13 +967,22 @@ async function refreshValidatorV1() {
         ' · Active validators: ' + (st.active_validators ?? 0) +
         ' · Activation height: ' + (st.validators_activation_height ?? 'disabled');
     }
+    const set = (id, t) => { const e = document.getElementById(id); if (e) e.textContent = t; };
+    if (st) {
+      const attesting = st.attesting === true;
+      set('v1-attesting', attesting ? 'yes' : 'no');
+      const lah = st.last_attested_height;
+      set('v1-last-attest', lah != null && lah > 0 ? String(lah) : '—');
+    } else {
+      set('v1-attesting', 'no (node offline)');
+      set('v1-last-attest', '—');
+    }
     const addr = (document.getElementById('v1-address')?.value || '').trim()
       || (document.getElementById('miner-address')?.value || '').trim();
     if (addr && document.getElementById('v1-address') && !document.getElementById('v1-address').value) {
       document.getElementById('v1-address').value = addr;
     }
     const mine = (vl?.validators || []).find(v => v.address === addr);
-    const set = (id, t) => { const e = document.getElementById(id); if (e) e.textContent = t; };
     if (!mine) {
       set('v1-status', 'inactive');
       set('v1-stake', '0 GoGX');
@@ -850,22 +1007,19 @@ async function refreshValidatorV1() {
   }
 }
 
-function v1Register() {
+async function v1Register() {
   const amt = Number(document.getElementById('v1-amount')?.value || 0);
   if (amt < 1000) { v1Msg('Minimum stake is 1,000 GoGX.', false); return; }
-  v1Msg('Register tx: build+sign with ~/.goldogram/keystore.json via core (Validators v1). Use CLI/API until desktop signing ships end-to-end — stake amount recorded for UI.', false);
-  addLog('[Validator] Register requested amount=' + amt + ' GoGX (activation-gated)', 'info');
+  await v1SubmitSigned('ValidatorRegister', amt);
 }
-function v1AddStake() {
+async function v1AddStake() {
   const amt = Number(document.getElementById('v1-amount')?.value || 0);
   if (amt <= 0) { v1Msg('Enter a positive amount.', false); return; }
-  v1Msg('Add-stake requested for ' + amt + ' GoGX (submit via signed ValidatorAddStake tx).', false);
-  addLog('[Validator] Add stake ' + amt, 'info');
+  await v1SubmitSigned('ValidatorAddStake', amt);
 }
-function v1Unbond() {
+async function v1Unbond() {
   if (!confirm('Unbond starts a 7-day (201,600 block) unlock. No attestations count during unbonding. Continue?')) return;
-  v1Msg('Unbond requested (ValidatorUnbond tx).', false);
-  addLog('[Validator] Unbond requested', 'info');
+  await v1SubmitSigned('ValidatorUnbond', 0);
 }
 
 refreshValidatorV1();
@@ -890,6 +1044,8 @@ async function setupLogin() {
     const data = await res.json();
     if (data.token) {
       setupToken = data.token;
+      const jwtEl = document.getElementById('v1-jwt');
+      if (jwtEl) jwtEl.value = setupToken;
       setupAddress = data.wallet && data.wallet.gog_address ? data.wallet.gog_address : '';
       setupUsername = data.user && data.user.username ? data.user.username : username;
       document.getElementById('setup-username-display').textContent = setupUsername;

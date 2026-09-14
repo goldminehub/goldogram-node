@@ -5,6 +5,12 @@ const path = require('path');
 const os = require('os');
 const { buildNodeArgs } = require('./node_args');
 const {
+  defaultKeystorePath,
+  listKeystoreAddresses,
+  signValidatorTx,
+  expandHome,
+} = require('./keystore_sign');
+const {
   LOCK_GRACE_MS,
   taskkillArgs,
   parseWmicNamedCsv,
@@ -25,6 +31,8 @@ let mainWindow;
 let nodeProcess = null;
 let minerProcess = null;
 const pendingDashLogs = [];
+/** @type {{ path: string, password: string, unlockedAt: number } | null} */
+let unlockedKeystore = null;
 
 // Multiple seeds: DNS name first (survives IP changes), raw IP as fallback.
 // The node also remembers good peers in peers.dat and retries them at startup,
@@ -230,23 +238,40 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
-ipcMain.handle('start-node', async (event, { datadir, seeds, validatorAddress, validatorStake, mine, rewardAddress }) => {
+ipcMain.handle('start-node', async (event, { datadir, seeds, validatorAddress, validatorStake, mine, rewardAddress, enableValidator }) => {
   await stopTrackedNode();
   await killGoldogramOrphans();
   const binaryPath = getBinaryPath('goldogram-core');
-  const args = buildNodeArgs({ datadir, validatorAddress, validatorStake, mine, rewardAddress });
+  const args = buildNodeArgs({
+    datadir,
+    validatorAddress,
+    validatorStake,
+    mine,
+    rewardAddress,
+    enableValidator: !!enableValidator || !!String(validatorAddress || '').trim(),
+  });
   const reward = rewardAddress && String(rewardAddress).trim();
   console.log('[Node] spawn argv:', binaryPath, args.join(' '));
   mainWindow?.webContents.send('node-log', { type: 'stdout', line: '[Node] spawn argv: ' + args.join(' ') });
   const seedList = seeds && String(seeds).trim()
     ? String(seeds).split(/[\n,]+/).map((s) => s.trim()).filter(Boolean).join(',')
     : DEFAULT_SEEDS;
+  const ksPath = defaultKeystorePath(datadir);
   const env = {
     ...process.env,
     SEED_NODES: seedList,
     API_NODES: DEFAULT_API_NODES,
     ...(datadir ? { GOLDOGRAM_DATADIR: datadir } : {}),
+    VALIDATOR_KEYSTORE_PATH: ksPath,
   };
+  if (unlockedKeystore && unlockedKeystore.password) {
+    env.DILITHIUM5_KEY_ENCRYPTION_KEY = unlockedKeystore.password;
+  }
+  const vAddr = (validatorAddress && String(validatorAddress).trim())
+    || (reward && String(reward).trim());
+  if (vAddr) {
+    env.VALIDATOR_ADDRESS = vAddr;
+  }
   // Sovereign mine never reads API_NODE. Keep API_NODES for fullnode HTTP fallback sync only.
   if (mine && reward) {
     env.MINING_REWARD_ADDRESS = reward;
@@ -335,6 +360,69 @@ ipcMain.handle('get-status', async () => {
   } catch {
     return { ok: false, running: true };
   }
+});
+
+ipcMain.handle('keystore-list', async (_event, { datadir } = {}) => {
+  const ksPath = defaultKeystorePath(datadir);
+  return {
+    path: ksPath,
+    addresses: listKeystoreAddresses(ksPath),
+    unlocked: !!(unlockedKeystore && unlockedKeystore.path === ksPath),
+  };
+});
+
+ipcMain.handle('keystore-unlock', async (_event, { datadir, password } = {}) => {
+  const ksPath = defaultKeystorePath(datadir);
+  const addrs = listKeystoreAddresses(ksPath);
+  if (!addrs.length) {
+    return { ok: false, error: `No validators in keystore ${ksPath}` };
+  }
+  const pw = password == null ? '' : String(password);
+  // Verify by attempting a dry Transfer sign (nonce/amount irrelevant for decrypt).
+  const binaryPath = getBinaryPath('goldogram-core');
+  const probe = signValidatorTx({
+    binaryPath,
+    keystorePath: ksPath,
+    password: pw,
+    address: addrs[0],
+    txType: 'Transfer',
+    amountMicro: 0,
+    feeMicro: 1000,
+    nonce: 1,
+  });
+  if (!probe.ok) {
+    return { ok: false, error: probe.error || 'Unlock failed (wrong password?)' };
+  }
+  unlockedKeystore = { path: ksPath, password: pw, unlockedAt: Date.now() };
+  return { ok: true, path: ksPath, addresses: addrs };
+});
+
+ipcMain.handle('keystore-lock', async () => {
+  unlockedKeystore = null;
+  return { ok: true };
+});
+
+ipcMain.handle('sign-validator-tx', async (_event, opts = {}) => {
+  const datadir = opts.datadir;
+  const ksPath = defaultKeystorePath(datadir);
+  const pw = (unlockedKeystore && unlockedKeystore.path === ksPath)
+    ? unlockedKeystore.password
+    : (opts.password || '');
+  if (!pw && unlockedKeystore?.path !== ksPath) {
+    return { ok: false, error: 'Keystore locked — unlock first' };
+  }
+  const binaryPath = getBinaryPath('goldogram-core');
+  return signValidatorTx({
+    binaryPath,
+    keystorePath: ksPath,
+    password: pw,
+    address: opts.address,
+    txType: opts.txType,
+    amountMicro: opts.amountMicro,
+    feeMicro: opts.feeMicro != null ? opts.feeMicro : 1000,
+    nonce: opts.nonce,
+    payload: opts.payload,
+  });
 });
 
 ipcMain.handle('check-update', () => {

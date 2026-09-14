@@ -32,3 +32,15 @@ test('mine without reward address does not add --mine', () => {
   const args = buildNodeArgs({ datadir: '/data', mine: true, rewardAddress: '  ' });
   assert.ok(!args.includes('--mine'));
 });
+
+test('enableValidator adds --validator', () => {
+  const args = buildNodeArgs({
+    datadir: '/data',
+    enableValidator: true,
+    validatorAddress: 'GoValAddr',
+    validatorStake: 1000,
+  });
+  assert.ok(args.includes('--validator'));
+  assert.ok(args.includes('--validator-address'));
+  assert.equal(args[args.indexOf('--validator-address') + 1], 'GoValAddr');
+});
