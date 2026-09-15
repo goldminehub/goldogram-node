@@ -1120,8 +1120,36 @@ async function setupJoinValidator() {
     });
     const data = await res.json();
     if (data.ok) {
-      msg.style.color='#4ade80'; msg.textContent='✅ You are now a validator! Rewards start immediately.';
+      msg.style.color='#4ade80';
+      msg.textContent = data.funds_actually_locked === false
+        ? '✅ On bootstrap roster (no GoGX locked). Use Validator → Register for validators_v1.'
+        : '✅ You are now a validator! Rewards start immediately.';
       setTimeout(setupSkip, 2000);
+    } else if (res.status === 409 && /already joined/i.test(String(data.error || ''))) {
+      // Roster-only conflict: clear or migrate so Validators v1 Register works.
+      msg.textContent = data.funds_actually_locked
+        ? 'Already joined with escrow — migrating to validators_v1…'
+        : 'Already on roster (no funds locked) — clearing so you can Register…';
+      const path = data.funds_actually_locked
+        ? '/api/validator/bootstrap/migrate'
+        : '/api/validator/bootstrap/leave';
+      const mres = await fetch('https://goldminequant.org' + path, {
+        method: 'POST',
+        headers: {'Authorization': 'Bearer ' + setupToken, 'Content-Type': 'application/json'},
+        body: '{}',
+      });
+      const mdata = await mres.json();
+      if (mres.ok && mdata.ok) {
+        msg.style.color='#4ade80';
+        msg.textContent = mdata.converted
+          ? '✅ Bootstrap stake converted to validators_v1 (no extra lock).'
+          : '✅ Legacy roster cleared — use Validator tab → Register (min 1,000 GoGX).';
+        setTimeout(setupSkip, 2500);
+      } else {
+        msg.style.color='#f87171';
+        msg.textContent = '❌ ' + (mdata.error || data.error || 'Migration failed');
+        btn.disabled = false;
+      }
     } else {
       msg.style.color='#f87171'; msg.textContent='❌ ' + (data.error || 'Failed');
       btn.disabled = false;
