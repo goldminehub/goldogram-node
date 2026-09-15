@@ -1119,8 +1119,10 @@ async function v1SubmitSigned(txType, amountGog) {
     nonce: nextNonce,
   });
   if (!signed?.ok) {
-    v1Msg(signed?.error || 'Sign failed', false);
-    addLog('[Validator] sign failed: ' + (signed?.error || ''), 'error');
+    const errText = [signed?.error, signed?.stderr].filter(Boolean).join(' · ') || 'Sign failed';
+    v1Msg(errText, false);
+    addLog('[Validator] sign failed: ' + errText, 'error');
+    if (signed?.stderr) addLog('[Validator] sign stderr: ' + signed.stderr, 'error');
     return;
   }
   v1Msg('Submitting…', true);

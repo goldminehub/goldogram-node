@@ -33,6 +33,26 @@ function listKeystoreAddresses(keystorePath) {
 }
 
 /**
+ * Core `--sign-tx` / `--wrap-keystore` may still leak log lines to stdout on
+ * older binaries. Take the last line that starts with `{` and parse it.
+ */
+function parseCliJsonStdout(stdout) {
+  const text = String(stdout == null ? '' : stdout);
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if (lines[i].startsWith('{')) {
+      return JSON.parse(lines[i]);
+    }
+  }
+  // Whole buffer might be one JSON object (no trailing newline).
+  const trimmed = text.trim();
+  if (trimmed.startsWith('{')) {
+    return JSON.parse(trimmed);
+  }
+  throw new Error('no JSON object in stdout');
+}
+
+/**
  * Create Argon2id keystore via goldogram-core --wrap-keystore (never logs SK).
  */
 function wrapKeystoreFile({
@@ -63,10 +83,11 @@ function wrapKeystoreFile({
     return {
       ok: false,
       error: (r.stderr || r.stdout || `wrap-keystore exit ${r.status}`).trim(),
+      stderr: (r.stderr || '').trim(),
     };
   }
   try {
-    const out = JSON.parse((r.stdout || '').trim());
+    const out = parseCliJsonStdout(r.stdout);
     return { ok: true, path: out.path || outPath, address: out.address || address };
   } catch {
     return { ok: true, path: outPath, address };
@@ -110,19 +131,26 @@ function signValidatorTx({
     },
   });
   if (r.error) {
-    return { ok: false, error: String(r.error.message || r.error) };
+    return { ok: false, error: String(r.error.message || r.error), stderr: '' };
   }
+  const stderr = String(r.stderr || '').trim();
   if (r.status !== 0) {
     return {
       ok: false,
-      error: (r.stderr || r.stdout || `sign-tx exit ${r.status}`).trim(),
+      error: (stderr || r.stdout || `sign-tx exit ${r.status}`).trim(),
+      stderr,
     };
   }
   try {
-    const tx = JSON.parse((r.stdout || '').trim());
-    return { ok: true, tx };
+    const tx = parseCliJsonStdout(r.stdout);
+    return { ok: true, tx, stderr };
   } catch (e) {
-    return { ok: false, error: `bad sign-tx output: ${e.message}` };
+    return {
+      ok: false,
+      error: `bad sign-tx output: ${e.message}`,
+      stderr,
+      stdout: String(r.stdout || '').slice(0, 500),
+    };
   }
 }
 
@@ -130,6 +158,7 @@ module.exports = {
   defaultKeystorePath,
   listKeystoreAddresses,
   expandHome,
+  parseCliJsonStdout,
   signValidatorTx,
   wrapKeystoreFile,
 };
