@@ -480,11 +480,24 @@ let statusInterval = null;
 let uptimeInterval = null;
 let logLines = [];
 
-function showPanel(name) {
+function showPanel(name, ev) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById('panel-' + name).classList.add('active');
-  event.currentTarget.classList.add('active');
+  const panel = document.getElementById('panel-' + name);
+  if (panel) panel.classList.add('active');
+  // Inline onclick passes a real event; programmatic calls (e.g. after keystore
+  // modal) have no event — never read currentTarget when undefined.
+  const evt = ev || (typeof window !== 'undefined' && window.event) || null;
+  if (evt && evt.currentTarget && evt.currentTarget.classList) {
+    evt.currentTarget.classList.add('active');
+  } else {
+    document.querySelectorAll('.nav-item').forEach((n) => {
+      const oc = n.getAttribute('onclick') || '';
+      if (oc.indexOf("'" + name + "'") !== -1 || oc.indexOf('"' + name + '"') !== -1) {
+        n.classList.add('active');
+      }
+    });
+  }
   if (name === 'validator') ensureValidatorTabInit();
 }
 
@@ -960,6 +973,10 @@ function finishSetupAfterKeystore() {
   if (overlay) overlay.style.display = 'none';
   const ksStep = document.getElementById('setup-step-keystore');
   if (ksStep) ksStep.style.display = 'none';
+  const loginStep = document.getElementById('setup-step-login');
+  if (loginStep) loginStep.style.display = 'none';
+  const submitBtn = document.getElementById('ks-modal-submit');
+  if (submitBtn) submitBtn.disabled = false;
   showPanel('dashboard');
   addLog('To become a validator, open the Validator tab (min 1,000 GoGX).', 'info');
   void refreshKeystoreStatus();
