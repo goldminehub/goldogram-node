@@ -41,8 +41,9 @@
   }
 
   /**
-   * Apply a successful /api/auth/login payload to the setup overlay + optional
-   * Validator/Mining fields. Never throws on missing DOM ids.
+   * Apply a successful /api/auth/login payload: wire wallet fields, hide setup
+   * overlay, show dashboard. Never throws on missing DOM ids.
+   * Legacy "Become Validator" welcome step is skipped.
    */
   function applySetupLoginSuccess(doc, data, username) {
     const token = data && data.token ? String(data.token) : '';
@@ -67,9 +68,16 @@
     setElText(doc, 'setup-username-display', displayName);
     setElText(doc, 'setup-address-display', address);
     setElDisplay(doc, 'setup-step-login', 'none');
-    setElDisplay(doc, 'setup-step-welcome', 'block');
+    setElDisplay(doc, 'setup-step-welcome', 'none');
+    setElDisplay(doc, 'setup-overlay', 'none');
+    setElDisplay(doc, 'dash-validator-hint', 'block');
+    setElText(
+      doc,
+      'dash-validator-hint',
+      'To become a validator, open the Validator tab (min 1,000 GoGX).',
+    );
 
-    return { token, address, username: displayName };
+    return { token, address, username: displayName, goDashboard: true };
   }
 
   return {

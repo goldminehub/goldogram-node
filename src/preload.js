@@ -4,6 +4,7 @@ contextBridge.exposeInMainWorld('node', {
   stop: () => ipcRenderer.invoke('stop-node'),
   getStatus: () => ipcRenderer.invoke('get-status'),
   getSysinfo: () => ipcRenderer.invoke('get-sysinfo'),
+  getAppVersion: () => ipcRenderer.invoke('get-app-version'),
   onLog: (cb) => ipcRenderer.on('node-log', (_, msg) => cb(msg)),
   onStopped: (cb) => ipcRenderer.on('node-stopped', (_, msg) => cb(msg)),
   keystoreList: (opts) => ipcRenderer.invoke('keystore-list', opts),

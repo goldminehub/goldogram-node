@@ -415,8 +415,15 @@ if (window.node) {
   loadSysinfo();
 }
 
-addLog('Goldogram Full Node v1.2.18 ready.', 'success');
 addLog('1 GoGX = 1 gram of gold. Quantum-secure.', 'info');
+(async function logAppReadyVersion() {
+  try {
+    const v = (await window.node?.getAppVersion?.()) || '';
+    addLog('Goldogram Full Node v' + (v || '?') + ' ready.', 'success');
+  } catch (_) {
+    addLog('Goldogram Full Node ready.', 'success');
+  }
+})();
 </script>
 </body>
 </html>

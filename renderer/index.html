@@ -88,23 +88,13 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
         <line x1="2" y1="16" x2="22" y2="16"/>
       </svg>
       <h1 style="font-size:20px;font-weight:700;color:#D4AF37;margin-bottom:6px;">Goldogram Full Node</h1>
-      <p style="font-size:13px;color:#555;line-height:1.5;">Login with your Goldogram account to connect your wallet and become a validator.</p>
+      <p style="font-size:13px;color:#555;line-height:1.5;">Login with your Goldogram account to connect your wallet.</p>
     </div>
     <div id="setup-step-login">
       <input id="setup-username" placeholder="Username" style="width:100%;background:#0d0d0d;border:1px solid #222;border-radius:8px;padding:10px 14px;color:#e8e0cc;font-size:14px;outline:none;box-sizing:border-box;margin-bottom:10px;"/>
       <input id="setup-password" type="password" placeholder="Password" style="width:100%;background:#0d0d0d;border:1px solid #222;border-radius:8px;padding:10px 14px;color:#e8e0cc;font-size:14px;outline:none;box-sizing:border-box;margin-bottom:16px;"/>
       <button onclick="setupLogin()" style="width:100%;padding:12px;background:linear-gradient(135deg,#D4AF37,#A67C00);color:#000;font-weight:700;font-size:14px;border:none;border-radius:8px;cursor:pointer;margin-bottom:10px;">Login to Goldogram</button>
       <div id="setup-msg" style="font-size:12px;text-align:center;min-height:20px;"></div>
-    </div>
-    <div id="setup-step-welcome" style="display:none;">
-      <div style="background:#0a1a00;border:1px solid #1a3a00;border-radius:8px;padding:14px;margin-bottom:16px;">
-        <div style="font-size:11px;color:#4ade80;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px;">Connected as</div>
-        <div id="setup-username-display" style="font-size:15px;font-weight:600;color:#e8e0cc;margin-bottom:4px;"></div>
-        <div id="setup-address-display" style="font-size:11px;color:#D4AF37;font-family:monospace;word-break:break-all;"></div>
-      </div>
-      <button onclick="setupJoinValidator()" id="setup-join-btn" style="width:100%;padding:12px;background:linear-gradient(135deg,#D4AF37,#A67C00);color:#000;font-weight:700;font-size:14px;border:none;border-radius:8px;cursor:pointer;margin-bottom:10px;">Become Validator — Stake 10,000 GoGX (1 year lock)</button>
-      <button onclick="setupSkip()" style="width:100%;padding:10px;background:transparent;color:#555;border:1px solid #222;border-radius:8px;cursor:pointer;font-size:13px;">Skip — Run as Full Node only</button>
-      <div id="setup-join-msg" style="font-size:12px;text-align:center;margin-top:10px;min-height:20px;"></div>
     </div>
   </div>
 </div>
@@ -179,6 +169,7 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
     </div>
 
     <div class="panel active" id="panel-dashboard">
+      <div id="dash-validator-hint" style="display:none;margin:0 16px 12px;padding:10px 14px;background:#0a1a00;border:1px solid #1a3a00;border-radius:8px;font-size:13px;color:#4ade80;line-height:1.4;"></div>
       <div class="stats-grid">
         <div class="stat-card">
           <div class="stat-label">Block Height</div>
@@ -814,8 +805,15 @@ if (window.node) {
   loadSysinfo();
 }
 
-addLog('Goldogram Full Node v1.2.18 ready.', 'success');
 addLog('1 GoGX = 1 gram of gold. Quantum-secure.', 'info');
+(async function logAppReadyVersion() {
+  try {
+    const v = (await window.node?.getAppVersion?.()) || '';
+    addLog('Goldogram Full Node v' + (v || '?') + ' ready.', 'success');
+  } catch (_) {
+    addLog('Goldogram Full Node ready.', 'success');
+  }
+})();
 
 const API = 'https://goldminequant.org';
 const LOCAL = 'http://localhost:8080';
@@ -1089,72 +1087,19 @@ async function setupLogin() {
           if (pin) ks = await ensureOnce(pin);
         }
         if (ks && ks.ok) {
-          msg.style.color = '#4ade80';
-          msg.textContent = ks.created
-            ? 'Keystore created · ' + (ks.addresses && ks.addresses[0] ? ks.addresses[0] : setupAddress)
-            : 'Keystore ready';
+          // Keystore step done — overlay already closed by applySetupLoginSuccess.
         } else if (ks && !ks.ok) {
-          msg.style.color = '#fbbf24';
-          msg.textContent = 'Logged in, but keystore: ' + (ks.error || 'failed');
+          addLog('Logged in, but keystore: ' + (ks.error || 'failed'), 'warn');
         }
       } catch (e) {
-        msg.style.color = '#fbbf24';
-        msg.textContent = 'Logged in, keystore step: ' + e.message;
+        addLog('Logged in, keystore step: ' + e.message, 'warn');
       }
-      if (msg && !msg.textContent) msg.textContent = '';
+      showPanel('dashboard');
+      addLog('To become a validator, open the Validator tab (min 1,000 GoGX).', 'info');
     } else {
       msg.style.color='#f87171'; msg.textContent='❌ ' + (data.error || 'Login failed');
     }
   } catch(e) { msg.style.color='#f87171'; msg.textContent='❌ ' + e.message; }
-}
-
-async function setupJoinValidator() {
-  const msg = document.getElementById('setup-join-msg');
-  const btn = document.getElementById('setup-join-btn');
-  msg.style.color='#D4AF37'; msg.textContent='Joining bootstrap program...';
-  btn.disabled = true;
-  try {
-    const res = await fetch('https://goldminequant.org/api/validator/join', {
-      method: 'POST',
-      headers: {'Authorization': 'Bearer ' + setupToken, 'Content-Type': 'application/json'}
-    });
-    const data = await res.json();
-    if (data.ok) {
-      msg.style.color='#4ade80';
-      msg.textContent = data.funds_actually_locked === false
-        ? '✅ On bootstrap roster (no GoGX locked). Use Validator → Register for validators_v1.'
-        : '✅ You are now a validator! Rewards start immediately.';
-      setTimeout(setupSkip, 2000);
-    } else if (res.status === 409 && /already joined/i.test(String(data.error || ''))) {
-      // Roster-only conflict: clear or migrate so Validators v1 Register works.
-      msg.textContent = data.funds_actually_locked
-        ? 'Already joined with escrow — migrating to validators_v1…'
-        : 'Already on roster (no funds locked) — clearing so you can Register…';
-      const path = data.funds_actually_locked
-        ? '/api/validator/bootstrap/migrate'
-        : '/api/validator/bootstrap/leave';
-      const mres = await fetch('https://goldminequant.org' + path, {
-        method: 'POST',
-        headers: {'Authorization': 'Bearer ' + setupToken, 'Content-Type': 'application/json'},
-        body: '{}',
-      });
-      const mdata = await mres.json();
-      if (mres.ok && mdata.ok) {
-        msg.style.color='#4ade80';
-        msg.textContent = mdata.converted
-          ? '✅ Bootstrap stake converted to validators_v1 (no extra lock).'
-          : '✅ Legacy roster cleared — use Validator tab → Register (min 1,000 GoGX).';
-        setTimeout(setupSkip, 2500);
-      } else {
-        msg.style.color='#f87171';
-        msg.textContent = '❌ ' + (mdata.error || data.error || 'Migration failed');
-        btn.disabled = false;
-      }
-    } else {
-      msg.style.color='#f87171'; msg.textContent='❌ ' + (data.error || 'Failed');
-      btn.disabled = false;
-    }
-  } catch(e) { msg.style.color='#f87171'; msg.textContent='❌ ' + e.message; btn.disabled = false; }
 }
 
 function setupSkip() {

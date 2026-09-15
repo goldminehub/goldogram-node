@@ -28,12 +28,14 @@ test('setElValue does not throw when element is missing', () => {
   assert.equal(setElValue(null, 'x', 'y'), false);
 });
 
-test('login success with current layout (no legacy ids) completes without throw', () => {
+test('login success closes overlay and shows dashboard hint (no welcome step)', () => {
   const doc = makeDoc([
     'setup-username-display',
     'setup-address-display',
     'setup-step-login',
     'setup-step-welcome',
+    'setup-overlay',
+    'dash-validator-hint',
     'v1-jwt',
     'v1-address',
     'miner-address',
@@ -50,13 +52,17 @@ test('login success with current layout (no legacy ids) completes without throw'
   );
   assert.equal(out.token, 'jwt-abc');
   assert.equal(out.address, 'GoExecutorAddr');
+  assert.equal(out.goDashboard, true);
   assert.equal(doc._el('v1-jwt').value, 'jwt-abc');
   assert.equal(doc._el('miner-address').value, 'GoExecutorAddr');
   assert.equal(doc._el('setup-step-login').style.display, 'none');
-  assert.equal(doc._el('setup-step-welcome').style.display, 'block');
-  // Missing legacy ids must not throw:
-  assert.equal(setElValue(doc, 'validator-token', 'x'), false);
-  assert.equal(setElValue(doc, 'login-username', 'x'), false);
+  assert.equal(doc._el('setup-step-welcome').style.display, 'none');
+  assert.equal(doc._el('setup-overlay').style.display, 'none');
+  assert.equal(doc._el('dash-validator-hint').style.display, 'block');
+  assert.match(
+    doc._el('dash-validator-hint').textContent,
+    /Validator tab \(min 1,000 GoGX\)/,
+  );
 });
 
 test('login success ignores absent validator-token / login-username', () => {
@@ -64,7 +70,8 @@ test('login success ignores absent validator-token / login-username', () => {
     'setup-username-display',
     'setup-address-display',
     'setup-step-login',
-    'setup-step-welcome',
+    'setup-overlay',
+    'dash-validator-hint',
   ]);
   assert.doesNotThrow(() => {
     applySetupLoginSuccess(
@@ -75,4 +82,5 @@ test('login success ignores absent validator-token / login-username', () => {
   });
   assert.equal(doc._el('setup-username-display').textContent, 'executor');
   assert.equal(doc._el('setup-address-display').textContent, 'GoX');
+  assert.equal(doc._el('setup-overlay').style.display, 'none');
 });

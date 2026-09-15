@@ -362,6 +362,8 @@ ipcMain.handle('get-status', async () => {
   }
 });
 
+ipcMain.handle('get-app-version', () => app.getVersion());
+
 ipcMain.handle('keystore-list', async (_event, { datadir } = {}) => {
   const ksPath = defaultKeystorePath(datadir);
   const addrs = listKeystoreAddresses(ksPath);
