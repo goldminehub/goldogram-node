@@ -243,20 +243,32 @@ ipcMain.handle('start-node', async (event, { datadir, seeds, validatorAddress, m
   await stopTrackedNode();
   await killGoldogramOrphans();
   const binaryPath = getBinaryPath('goldogram-core');
+  const ksPath = defaultKeystorePath(datadir);
+  const ksAddrs = listKeystoreAddresses(ksPath);
+  const hasKeystore = ksAddrs.length > 0;
+  const vAddr = (validatorAddress && String(validatorAddress).trim())
+    || (ksAddrs[0] ? String(ksAddrs[0]) : '')
+    || '';
   const args = buildNodeArgs({
     datadir,
-    validatorAddress,
+    validatorAddress: vAddr,
     mine,
     rewardAddress,
-    enableValidator: !!enableValidator || !!String(validatorAddress || '').trim(),
+    enableValidator: !!enableValidator || !!vAddr,
+    hasKeystore,
   });
   const reward = rewardAddress && String(rewardAddress).trim();
   console.log('[Node] spawn argv:', binaryPath, args.join(' '));
   mainWindow?.webContents.send('node-log', { type: 'stdout', line: '[Node] spawn argv: ' + args.join(' ') });
+  if (hasKeystore && args.includes('--validator')) {
+    mainWindow?.webContents.send('node-log', {
+      type: 'stdout',
+      line: `[Validator] keystore loaded (${ksPath})`,
+    });
+  }
   const seedList = seeds && String(seeds).trim()
     ? String(seeds).split(/[\n,]+/).map((s) => s.trim()).filter(Boolean).join(',')
     : DEFAULT_SEEDS;
-  const ksPath = defaultKeystorePath(datadir);
   const env = {
     ...process.env,
     SEED_NODES: seedList,
@@ -267,10 +279,10 @@ ipcMain.handle('start-node', async (event, { datadir, seeds, validatorAddress, m
   if (unlockedKeystore && unlockedKeystore.password) {
     env.DILITHIUM5_KEY_ENCRYPTION_KEY = unlockedKeystore.password;
   }
-  const vAddr = (validatorAddress && String(validatorAddress).trim())
-    || (reward && String(reward).trim());
-  if (vAddr) {
-    env.VALIDATOR_ADDRESS = vAddr;
+  // Reward / Hello claim address — do not imply legacy PoS join.
+  const claimAddr = vAddr || reward;
+  if (claimAddr) {
+    env.VALIDATOR_ADDRESS = claimAddr;
   }
   // Sovereign mine never reads API_NODE. Keep API_NODES for fullnode HTTP fallback sync only.
   if (mine && reward) {
@@ -423,7 +435,11 @@ ipcMain.handle('keystore-ensure', async (_event, { datadir, token, password, pin
   unlockedKeystore = { path: ksPath, password, addresses: [exported.address] };
   mainWindow?.webContents.send('node-log', {
     type: 'stdout',
-    line: `[Validator] keystore created at ${ksPath} (address ${exported.address})`,
+    line: `[Keystore] written ${ksPath}`,
+  });
+  mainWindow?.webContents.send('node-log', {
+    type: 'stdout',
+    line: `[Validator] keystore loaded (address ${exported.address})`,
   });
   return { ok: true, created: true, path: ksPath, addresses: [exported.address] };
 });
@@ -451,6 +467,10 @@ ipcMain.handle('keystore-unlock', async (_event, { datadir, password } = {}) => 
     return { ok: false, error: probe.error || 'Unlock failed (wrong password?)' };
   }
   unlockedKeystore = { path: ksPath, password: pw, unlockedAt: Date.now() };
+  mainWindow?.webContents.send('node-log', {
+    type: 'stdout',
+    line: `[Validator] keystore loaded (address ${addrs[0]})`,
+  });
   return { ok: true, path: ksPath, addresses: addrs };
 });
 

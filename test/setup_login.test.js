@@ -65,22 +65,21 @@ test('login success closes overlay and shows dashboard hint (no welcome step)', 
   );
 });
 
-test('login success ignores absent validator-token / login-username', () => {
+test('login success keepOverlay leaves overlay visible for keystore step', () => {
   const doc = makeDoc([
-    'setup-username-display',
-    'setup-address-display',
     'setup-step-login',
     'setup-overlay',
     'dash-validator-hint',
+    'v1-jwt',
   ]);
-  assert.doesNotThrow(() => {
-    applySetupLoginSuccess(
-      doc,
-      { token: 't', wallet: { gog_address: 'GoX' }, user: { username: 'executor' } },
-      'executor',
-    );
-  });
-  assert.equal(doc._el('setup-username-display').textContent, 'executor');
-  assert.equal(doc._el('setup-address-display').textContent, 'GoX');
-  assert.equal(doc._el('setup-overlay').style.display, 'none');
+  const out = applySetupLoginSuccess(
+    doc,
+    { token: 't', wallet: { gog_address: 'GoX' }, user: { username: 'u' } },
+    'u',
+    { keepOverlay: true },
+  );
+  assert.equal(out.keepOverlay, true);
+  assert.equal(out.goDashboard, false);
+  assert.equal(doc._el('setup-overlay').style.display, '');
+  assert.equal(doc._el('setup-step-login').style.display, 'none');
 });

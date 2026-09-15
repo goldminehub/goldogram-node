@@ -33,12 +33,23 @@ test('mine without reward address does not add --mine', () => {
   assert.ok(!args.includes('--mine'));
 });
 
-test('enableValidator adds --validator without legacy --stake', () => {
+test('address alone does not add --validator without keystore', () => {
   const args = buildNodeArgs({
     datadir: '/data',
     enableValidator: true,
     validatorAddress: 'GoValAddr',
-    validatorStake: 1000,
+    hasKeystore: false,
+  });
+  assert.ok(!args.includes('--validator'));
+  assert.ok(!args.includes('--validator-address'));
+});
+
+test('keystore + address adds --validator without --stake', () => {
+  const args = buildNodeArgs({
+    datadir: '/data',
+    enableValidator: true,
+    validatorAddress: 'GoValAddr',
+    hasKeystore: true,
   });
   assert.ok(args.includes('--validator'));
   assert.ok(args.includes('--validator-address'));

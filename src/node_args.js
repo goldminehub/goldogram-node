@@ -2,10 +2,9 @@
 
 /**
  * Exact argv passed to goldogram-core for the desktop full node.
- * Always --fullnode first (no dummy `node` subcommand). --mine is only
- * added together with --reward-address so the child cannot be Miner-without-sled.
- * `--validator` enables the attestation loop when a keystore + address exist.
- * Legacy `--stake` (bootstrap PoS) is never passed — validators_v1 only.
+ * Always --fullnode first. --mine only with --reward-address.
+ * `--validator` is only added when a keystore exists on disk — never from
+ * a bare address field (that triggered legacy PoS join with fake 10k stake).
  */
 function buildNodeArgs({
   datadir,
@@ -13,15 +12,16 @@ function buildNodeArgs({
   mine,
   rewardAddress,
   enableValidator,
+  hasKeystore,
 } = {}) {
   const args = ['--fullnode'];
   if (datadir) args.push('--datadir', String(datadir));
   const vAddr = validatorAddress && String(validatorAddress).trim();
-  if (enableValidator || vAddr) {
+  const ksOk = !!hasKeystore;
+  // Attestation only with keystore + address; never pass --validator alone.
+  if (ksOk && (enableValidator || vAddr)) {
     args.push('--validator');
-  }
-  if (vAddr) {
-    args.push('--validator-address', vAddr);
+    if (vAddr) args.push('--validator-address', vAddr);
   }
   const reward = rewardAddress && String(rewardAddress).trim();
   if (mine && reward) {

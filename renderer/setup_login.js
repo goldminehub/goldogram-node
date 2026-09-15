@@ -41,11 +41,14 @@
   }
 
   /**
-   * Apply a successful /api/auth/login payload: wire wallet fields, hide setup
-   * overlay, show dashboard. Never throws on missing DOM ids.
+   * Apply a successful /api/auth/login payload: wire wallet fields.
+   * By default hides the setup overlay. Pass { keepOverlay: true } to stay on
+   * the overlay for the keystore step (Electron has no window.prompt).
    * Legacy "Become Validator" welcome step is skipped.
    */
-  function applySetupLoginSuccess(doc, data, username) {
+  function applySetupLoginSuccess(doc, data, username, opts) {
+    const options = opts && typeof opts === 'object' ? opts : {};
+    const keepOverlay = !!options.keepOverlay;
     const token = data && data.token ? String(data.token) : '';
     const address =
       data && data.wallet && data.wallet.gog_address
@@ -69,7 +72,9 @@
     setElText(doc, 'setup-address-display', address);
     setElDisplay(doc, 'setup-step-login', 'none');
     setElDisplay(doc, 'setup-step-welcome', 'none');
-    setElDisplay(doc, 'setup-overlay', 'none');
+    if (!keepOverlay) {
+      setElDisplay(doc, 'setup-overlay', 'none');
+    }
     setElDisplay(doc, 'dash-validator-hint', 'block');
     setElText(
       doc,
@@ -77,7 +82,7 @@
       'To become a validator, open the Validator tab (min 1,000 GoGX).',
     );
 
-    return { token, address, username: displayName, goDashboard: true };
+    return { token, address, username: displayName, goDashboard: !keepOverlay, keepOverlay };
   }
 
   return {

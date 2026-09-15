@@ -96,6 +96,17 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
       <button onclick="setupLogin()" style="width:100%;padding:12px;background:linear-gradient(135deg,#D4AF37,#A67C00);color:#000;font-weight:700;font-size:14px;border:none;border-radius:8px;cursor:pointer;margin-bottom:10px;">Login to Goldogram</button>
       <div id="setup-msg" style="font-size:12px;text-align:center;min-height:20px;"></div>
     </div>
+    <div id="setup-step-keystore" style="display:none;">
+      <h2 style="font-size:16px;font-weight:700;color:#D4AF37;margin:0 0 8px;text-align:center;">Create validator keystore</h2>
+      <p style="font-size:12px;color:#666;line-height:1.5;margin:0 0 16px;text-align:center;">Exports your Dilithium key and wraps it with Argon2id into keystore.json. Electron has no window.prompt — enter password and PIN here.</p>
+      <label style="font-size:11px;color:#666;display:block;margin-bottom:6px;">Login password</label>
+      <input id="ks-modal-password" type="password" autocomplete="current-password" style="width:100%;background:#0d0d0d;border:1px solid #222;border-radius:8px;padding:10px 14px;color:#e8e0cc;font-size:14px;outline:none;box-sizing:border-box;margin-bottom:10px;"/>
+      <label style="font-size:11px;color:#666;display:block;margin-bottom:6px;">Transaction PIN (if set on your account)</label>
+      <input id="ks-modal-pin" type="password" autocomplete="one-time-code" placeholder="Optional unless required" style="width:100%;background:#0d0d0d;border:1px solid #222;border-radius:8px;padding:10px 14px;color:#e8e0cc;font-size:14px;outline:none;box-sizing:border-box;margin-bottom:16px;"/>
+      <button id="ks-modal-submit" onclick="submitKeystoreModal()" style="width:100%;padding:12px;background:linear-gradient(135deg,#D4AF37,#A67C00);color:#000;font-weight:700;font-size:14px;border:none;border-radius:8px;cursor:pointer;margin-bottom:10px;">Create keystore</button>
+      <button id="ks-modal-cancel" onclick="cancelKeystoreModal()" style="width:100%;padding:10px;background:#151515;color:#888;border:1px solid #222;border-radius:8px;cursor:pointer;font-size:13px;margin-bottom:10px;">Skip for now</button>
+      <div id="ks-modal-msg" style="font-size:12px;text-align:center;min-height:20px;color:#888;"></div>
+    </div>
   </div>
 </div>
 
@@ -425,10 +436,11 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
         <div style="background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:16px;margin-bottom:12px;">
           <div style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">Keystore</div>
           <div style="font-size:12px;color:#888;margin-bottom:8px;" id="v1-ks-status">Locked — unlock ~/.goldogram/keystore.json to sign</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
             <button onclick="v1UnlockKeystore()" style="padding:10px;background:#1a1200;color:#D4AF37;border:1px solid #2a2000;border-radius:8px;cursor:pointer;font-weight:600;">Unlock</button>
             <button onclick="v1LockKeystore()" style="padding:10px;background:#151515;color:#888;border:1px solid #222;border-radius:8px;cursor:pointer;">Lock</button>
           </div>
+          <button id="v1-create-ks" onclick="v1CreateKeystore()" style="width:100%;padding:10px;background:#151515;color:#D4AF37;border:1px solid #2a2000;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;">Create keystore</button>
         </div>
 
         <div style="background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:16px;margin-bottom:12px;">
@@ -578,10 +590,19 @@ async function startNode() {
     || '';
   const validatorStake = document.getElementById('cfg-stake').value;
   addLog('Starting Goldogram Full Node...', 'info');
-  if (validatorAddress) addLog('Validator mode: ' + validatorAddress, 'info');
+  let hasKeystore = false;
+  try {
+    const info = await window.node?.keystoreList?.({ datadir });
+    hasKeystore = !!(info && info.addresses && info.addresses.length);
+  } catch (_) {}
+  if (validatorAddress && hasKeystore) {
+    addLog('Validators v1 attest: ' + validatorAddress + ' (keystore)', 'info');
+  } else if (validatorAddress && !hasKeystore) {
+    addLog('Address set but no keystore — starting fullnode without --validator (no legacy join)', 'warn');
+  }
   const mine = document.getElementById('mine-on-node')?.checked;
   const rewardAddress = document.getElementById('miner-address')?.value.trim();
-  const enableValidator = !!validatorAddress;
+  const enableValidator = !!(validatorAddress && hasKeystore);
   const res = await window.node?.start({
     url, datadir, seeds, validatorAddress, validatorStake, mine, rewardAddress, enableValidator,
   });
@@ -845,6 +866,7 @@ function v1Jwt() {
 async function refreshKeystoreStatus() {
   const el = document.getElementById('v1-ks-status');
   const regBtn = document.querySelector('button[onclick="v1Register()"]');
+  const createBtn = document.getElementById('v1-create-ks');
   if (!el || !window.node?.keystoreList) return;
   try {
     const info = await window.node.keystoreList({ datadir: v1Datadir() });
@@ -852,9 +874,11 @@ async function refreshKeystoreStatus() {
       el.textContent = 'No keystore at ' + (info.path || '~/.goldogram/keystore.json');
       el.style.color = '#f87171';
       if (regBtn) regBtn.disabled = true;
+      if (createBtn) createBtn.style.display = '';
       return;
     }
     const addr = info.addresses[0];
+    if (createBtn) createBtn.style.display = 'none';
     if (info.unlocked) {
       el.textContent = 'Keystore: loaded (address ' + addr + ')';
       el.style.color = '#4ade80';
@@ -867,22 +891,173 @@ async function refreshKeystoreStatus() {
       if (regBtn) regBtn.disabled = true;
     }
   } catch (e) {
-    el.textContent = 'Keystore error: ' + e.message;
+    el.textContent = 'Keystore error: ' + (e && e.message ? e.message : String(e));
+    el.style.color = '#f87171';
     if (regBtn) regBtn.disabled = true;
   }
 }
 
-async function v1UnlockKeystore() {
-  const password = prompt('Unlock keystore password (same as login password):', '');
-  if (password == null) return;
-  v1Msg('Unlocking…', true);
-  const res = await window.node?.keystoreUnlock({ datadir: v1Datadir(), password });
-  if (!res?.ok) {
-    v1Msg(res?.error || 'Unlock failed', false);
+/** In-app password+PIN modal (Electron does not implement window.prompt). */
+let _ksModalResolve = null;
+let _ksModalMode = 'create'; // 'create' | 'unlock'
+
+function openKeystoreModal(opts) {
+  const options = opts || {};
+  _ksModalMode = options.mode === 'unlock' ? 'unlock' : 'create';
+  const overlay = document.getElementById('setup-overlay');
+  const loginStep = document.getElementById('setup-step-login');
+  const ksStep = document.getElementById('setup-step-keystore');
+  const pwEl = document.getElementById('ks-modal-password');
+  const pinEl = document.getElementById('ks-modal-pin');
+  const msgEl = document.getElementById('ks-modal-msg');
+  const submitBtn = document.getElementById('ks-modal-submit');
+  const cancelBtn = document.getElementById('ks-modal-cancel');
+  if (!overlay || !ksStep) {
+    return Promise.resolve({ cancelled: true, error: 'keystore modal missing' });
+  }
+  if (loginStep) loginStep.style.display = 'none';
+  ksStep.style.display = 'block';
+  overlay.style.display = 'flex';
+  if (pwEl) pwEl.value = options.password != null ? String(options.password) : '';
+  if (pinEl) {
+    pinEl.value = '';
+    pinEl.parentElement
+      ? (pinEl.style.display = _ksModalMode === 'unlock' ? 'none' : '')
+      : null;
+    const pinLabel = pinEl.previousElementSibling;
+    if (pinLabel && pinLabel.tagName === 'LABEL') {
+      pinLabel.style.display = _ksModalMode === 'unlock' ? 'none' : '';
+    }
+  }
+  if (msgEl) {
+    msgEl.style.color = '#888';
+    msgEl.textContent = options.hint || '';
+  }
+  if (submitBtn) {
+    submitBtn.textContent = _ksModalMode === 'unlock' ? 'Unlock keystore' : 'Create keystore';
+    submitBtn.disabled = false;
+  }
+  if (cancelBtn) {
+    cancelBtn.textContent = options.allowSkip === false ? 'Cancel' : (_ksModalMode === 'unlock' ? 'Cancel' : 'Skip for now');
+  }
+  return new Promise((resolve) => {
+    _ksModalResolve = resolve;
+  });
+}
+
+function closeKeystoreModal(result) {
+  const ksStep = document.getElementById('setup-step-keystore');
+  const overlay = document.getElementById('setup-overlay');
+  if (ksStep) ksStep.style.display = 'none';
+  if (overlay) overlay.style.display = 'none';
+  const resolve = _ksModalResolve;
+  _ksModalResolve = null;
+  if (resolve) resolve(result || { cancelled: true });
+}
+
+function finishSetupAfterKeystore() {
+  const overlay = document.getElementById('setup-overlay');
+  if (overlay) overlay.style.display = 'none';
+  const ksStep = document.getElementById('setup-step-keystore');
+  if (ksStep) ksStep.style.display = 'none';
+  showPanel('dashboard');
+  addLog('To become a validator, open the Validator tab (min 1,000 GoGX).', 'info');
+  void refreshKeystoreStatus();
+}
+
+async function submitKeystoreModal() {
+  const pwEl = document.getElementById('ks-modal-password');
+  const pinEl = document.getElementById('ks-modal-pin');
+  const msgEl = document.getElementById('ks-modal-msg');
+  const submitBtn = document.getElementById('ks-modal-submit');
+  const password = (pwEl && pwEl.value) || '';
+  const pin = (pinEl && pinEl.value) || '';
+  if (!password) {
+    if (msgEl) { msgEl.style.color = '#f87171'; msgEl.textContent = 'Password is required.'; }
     return;
   }
-  v1Msg('Keystore: loaded (address ' + ((res.addresses || [])[0] || '') + ')', true);
-  await refreshKeystoreStatus();
+  if (msgEl) { msgEl.style.color = '#D4AF37'; msgEl.textContent = _ksModalMode === 'unlock' ? 'Unlocking…' : 'Creating keystore…'; }
+  if (submitBtn) submitBtn.disabled = true;
+  try {
+    if (_ksModalMode === 'unlock') {
+      const res = await window.node?.keystoreUnlock({ datadir: v1Datadir(), password });
+      if (!res?.ok) {
+        const err = res?.error || 'Unlock failed';
+        if (msgEl) { msgEl.style.color = '#f87171'; msgEl.textContent = err; }
+        v1Msg(err, false);
+        if (submitBtn) submitBtn.disabled = false;
+        return;
+      }
+      v1Msg('Keystore: loaded (address ' + ((res.addresses || [])[0] || '') + ')', true);
+      closeKeystoreModal({ ok: true, unlocked: true, addresses: res.addresses });
+      await refreshKeystoreStatus();
+      return;
+    }
+    const token = v1Jwt();
+    if (!token) {
+      const err = 'API JWT required — log in first';
+      if (msgEl) { msgEl.style.color = '#f87171'; msgEl.textContent = err; }
+      v1Msg(err, false);
+      if (submitBtn) submitBtn.disabled = false;
+      return;
+    }
+    const ks = await window.node?.keystoreEnsure?.({
+      datadir: v1Datadir() || undefined,
+      token,
+      password,
+      pin: pin || undefined,
+      apiBase: 'https://goldminequant.org',
+    });
+    if (ks && ks.ok) {
+      const path = ks.path || '';
+      addLog('[Keystore] written ' + path, 'success');
+      addLog('[Validator] keystore loaded', 'success');
+      v1Msg('Keystore: loaded (address ' + ((ks.addresses || [])[0] || '') + ')', true);
+      closeKeystoreModal({ ok: true, created: !!ks.created, path, addresses: ks.addresses });
+      finishSetupAfterKeystore();
+      return;
+    }
+    const err = (ks && ks.error) || 'Keystore creation failed';
+    if (msgEl) { msgEl.style.color = '#f87171'; msgEl.textContent = err; }
+    v1Msg(err, false);
+    addLog('Keystore error: ' + err, 'error');
+    if (submitBtn) submitBtn.disabled = false;
+  } catch (e) {
+    const err = e && e.message ? e.message : String(e);
+    if (msgEl) { msgEl.style.color = '#f87171'; msgEl.textContent = err; }
+    v1Msg(err, false);
+    addLog('Keystore error: ' + err, 'error');
+    if (submitBtn) submitBtn.disabled = false;
+  }
+}
+
+function cancelKeystoreModal() {
+  const wasCreateFromLogin = _ksModalMode === 'create';
+  closeKeystoreModal({ cancelled: true });
+  // After login keystore step, skip still closes overlay; unlock cancel stays on current panel.
+  if (wasCreateFromLogin) finishSetupAfterKeystore();
+}
+
+async function v1UnlockKeystore() {
+  v1Msg('Enter password to unlock…', true);
+  await openKeystoreModal({ mode: 'unlock', allowSkip: false, hint: 'Same password as your Goldogram login.' });
+}
+
+async function v1CreateKeystore() {
+  if (!v1Jwt()) {
+    v1Msg('Log in first (Setup) so Create keystore can export your signing key.', false);
+    const overlay = document.getElementById('setup-overlay');
+    const loginStep = document.getElementById('setup-step-login');
+    if (overlay) overlay.style.display = 'flex';
+    if (loginStep) loginStep.style.display = 'block';
+    return;
+  }
+  v1Msg('Create keystore…', true);
+  await openKeystoreModal({
+    mode: 'create',
+    password: (document.getElementById('setup-password') || {}).value || '',
+    hint: 'Password + PIN (if your account has a transaction PIN).',
+  });
 }
 
 async function v1LockKeystore() {
@@ -1063,7 +1238,7 @@ async function setupLogin() {
     const data = await res.json();
     if (data.token) {
       const applied = (window.GoldogramSetupLogin || {}).applySetupLoginSuccess
-        ? window.GoldogramSetupLogin.applySetupLoginSuccess(document, data, username)
+        ? window.GoldogramSetupLogin.applySetupLoginSuccess(document, data, username, { keepOverlay: true })
         : null;
       setupToken = (applied && applied.token) || data.token;
       setupAddress = (applied && applied.address) || (data.wallet && data.wallet.gog_address) || '';
@@ -1071,31 +1246,23 @@ async function setupLogin() {
       if (setupAddress) {
         try { localStorage.setItem('gog_address', setupAddress); } catch (_) {}
       }
-      // Auto-create ~/.goldogram/keystore.json (Argon2id) before node start.
+      // Prefer existing keystore; otherwise open in-app password+PIN modal (no window.prompt).
+      let already = null;
       try {
-        let pin;
-        const ensureOnce = async (pinVal) => window.node?.keystoreEnsure?.({
-          datadir: (document.getElementById('cfg-datadir') || {}).value || undefined,
-          token: setupToken,
-          password,
-          pin: pinVal,
-          apiBase: 'https://goldminequant.org',
-        });
-        let ks = await ensureOnce();
-        if (ks && !ks.ok && ks.needs_pin) {
-          pin = prompt('Transaction PIN required to create the validator keystore:', '');
-          if (pin) ks = await ensureOnce(pin);
-        }
-        if (ks && ks.ok) {
-          // Keystore step done — overlay already closed by applySetupLoginSuccess.
-        } else if (ks && !ks.ok) {
-          addLog('Logged in, but keystore: ' + (ks.error || 'failed'), 'warn');
-        }
-      } catch (e) {
-        addLog('Logged in, keystore step: ' + e.message, 'warn');
+        already = await window.node?.keystoreList?.({ datadir: v1Datadir() || undefined });
+      } catch (_) {}
+      if (already && already.addresses && already.addresses.length) {
+        addLog('[Validator] keystore loaded', 'success');
+        finishSetupAfterKeystore();
+        return;
       }
-      showPanel('dashboard');
-      addLog('To become a validator, open the Validator tab (min 1,000 GoGX).', 'info');
+      msg.style.color = '#4ade80';
+      msg.textContent = 'Logged in — create keystore';
+      await openKeystoreModal({
+        mode: 'create',
+        password,
+        hint: 'Required for Validators v1 attestation. Enter password and PIN if set.',
+      });
     } else {
       msg.style.color='#f87171'; msg.textContent='❌ ' + (data.error || 'Login failed');
     }
