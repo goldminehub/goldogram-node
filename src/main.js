@@ -34,6 +34,8 @@ let minerProcess = null;
 const pendingDashLogs = [];
 /** @type {{ path: string, password: string, unlockedAt: number } | null} */
 let unlockedKeystore = null;
+/** Last successful start-node options (used to restart after Unlock). */
+let lastNodeStartOpts = null;
 
 // Multiple seeds: DNS name first (survives IP changes), raw IP as fallback.
 // The node also remembers good peers in peers.dat and retries them at startup,
@@ -239,7 +241,16 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
-ipcMain.handle('start-node', async (event, { datadir, seeds, validatorAddress, mine, rewardAddress, enableValidator }) => {
+async function startFullNode(opts = {}) {
+  const {
+    datadir,
+    seeds,
+    validatorAddress,
+    mine,
+    rewardAddress,
+    enableValidator,
+  } = opts;
+  lastNodeStartOpts = { datadir, seeds, validatorAddress, mine, rewardAddress, enableValidator };
   await stopTrackedNode();
   await killGoldogramOrphans();
   const binaryPath = getBinaryPath('goldogram-core');
@@ -279,12 +290,10 @@ ipcMain.handle('start-node', async (event, { datadir, seeds, validatorAddress, m
   if (unlockedKeystore && unlockedKeystore.password) {
     env.DILITHIUM5_KEY_ENCRYPTION_KEY = unlockedKeystore.password;
   }
-  // Reward / Hello claim address — do not imply legacy PoS join.
   const claimAddr = vAddr || reward;
   if (claimAddr) {
     env.VALIDATOR_ADDRESS = claimAddr;
   }
-  // Sovereign mine never reads API_NODE. Keep API_NODES for fullnode HTTP fallback sync only.
   if (mine && reward) {
     env.MINING_REWARD_ADDRESS = reward;
     delete env.API_NODE;
@@ -326,7 +335,19 @@ ipcMain.handle('start-node', async (event, { datadir, seeds, validatorAddress, m
     emitNodeStopped(code, failed ? `goldogram-core exited (code ${code})` : null);
   });
   return { ok: true };
-});
+}
+
+async function restartNodeAfterKeystoreUnlock() {
+  if (!nodeProcess || !nodeProcess.pid || !lastNodeStartOpts) return false;
+  mainWindow?.webContents.send('node-log', {
+    type: 'stdout',
+    line: '[Validator] restarting node with unlocked keystore so attest loop can sign',
+  });
+  const res = await startFullNode(lastNodeStartOpts);
+  return !!(res && res.ok);
+}
+
+ipcMain.handle('start-node', async (_event, opts) => startFullNode(opts || {}));
 
 ipcMain.handle('stop-node', async () => {
   await stopTrackedNode();
@@ -387,10 +408,11 @@ ipcMain.handle('keystore-list', async (_event, { datadir } = {}) => {
   };
 });
 
-ipcMain.handle('keystore-ensure', async (_event, { datadir, token, password, pin, apiBase } = {}) => {
+ipcMain.handle('keystore-ensure', async (_event, { datadir, token, password, pin, apiBase, replace } = {}) => {
   const ksPath = defaultKeystorePath(datadir);
   const existing = listKeystoreAddresses(ksPath);
-  if (existing.length) {
+  const forceReplace = !!replace;
+  if (existing.length && !forceReplace) {
     return { ok: true, created: false, path: ksPath, addresses: existing };
   }
   if (!token || !password) {
@@ -420,6 +442,13 @@ ipcMain.handle('keystore-ensure', async (_event, { datadir, token, password, pin
   } catch (e) {
     return { ok: false, error: String(e.message || e) };
   }
+  if (forceReplace && require('fs').existsSync(ksPath)) {
+    try {
+      require('fs').unlinkSync(ksPath);
+    } catch (e) {
+      return { ok: false, error: 'failed to remove old keystore: ' + (e.message || e) };
+    }
+  }
   const binaryPath = getBinaryPath('goldogram-core');
   const wrap = wrapKeystoreFile({
     binaryPath,
@@ -441,7 +470,15 @@ ipcMain.handle('keystore-ensure', async (_event, { datadir, token, password, pin
     type: 'stdout',
     line: `[Validator] keystore loaded (address ${exported.address})`,
   });
-  return { ok: true, created: true, path: ksPath, addresses: [exported.address] };
+  const restarted = await restartNodeAfterKeystoreUnlock();
+  return {
+    ok: true,
+    created: !forceReplace,
+    replaced: forceReplace,
+    path: ksPath,
+    addresses: [exported.address],
+    restarted,
+  };
 });
 
 ipcMain.handle('keystore-unlock', async (_event, { datadir, password } = {}) => {
@@ -471,7 +508,8 @@ ipcMain.handle('keystore-unlock', async (_event, { datadir, password } = {}) => 
     type: 'stdout',
     line: `[Validator] keystore loaded (address ${addrs[0]})`,
   });
-  return { ok: true, path: ksPath, addresses: addrs };
+  const restarted = await restartNodeAfterKeystoreUnlock();
+  return { ok: true, path: ksPath, addresses: addrs, restarted };
 });
 
 ipcMain.handle('keystore-lock', async () => {

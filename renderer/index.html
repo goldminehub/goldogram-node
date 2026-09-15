@@ -441,6 +441,7 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
             <button onclick="v1LockKeystore()" style="padding:10px;background:#151515;color:#888;border:1px solid #222;border-radius:8px;cursor:pointer;">Lock</button>
           </div>
           <button id="v1-create-ks" onclick="v1CreateKeystore()" style="width:100%;padding:10px;background:#151515;color:#D4AF37;border:1px solid #2a2000;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;">Create keystore</button>
+          <button id="v1-replace-ks" onclick="v1ReplaceKeystore()" style="display:none;width:100%;padding:10px;margin-top:8px;background:#151515;color:#fbbf24;border:1px solid #3a3000;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;">Replace keystore</button>
         </div>
 
         <div style="background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:16px;margin-bottom:12px;">
@@ -880,6 +881,7 @@ async function refreshKeystoreStatus() {
   const el = document.getElementById('v1-ks-status');
   const regBtn = document.querySelector('button[onclick="v1Register()"]');
   const createBtn = document.getElementById('v1-create-ks');
+  const replaceBtn = document.getElementById('v1-replace-ks');
   if (!el || !window.node?.keystoreList) return;
   try {
     const info = await window.node.keystoreList({ datadir: v1Datadir() });
@@ -888,10 +890,12 @@ async function refreshKeystoreStatus() {
       el.style.color = '#f87171';
       if (regBtn) regBtn.disabled = true;
       if (createBtn) createBtn.style.display = '';
+      if (replaceBtn) replaceBtn.style.display = 'none';
       return;
     }
     const addr = info.addresses[0];
     if (createBtn) createBtn.style.display = 'none';
+    if (replaceBtn) replaceBtn.style.display = '';
     if (info.unlocked) {
       el.textContent = 'Keystore: loaded (address ' + addr + ')';
       el.style.color = '#4ade80';
@@ -912,11 +916,13 @@ async function refreshKeystoreStatus() {
 
 /** In-app password+PIN modal (Electron does not implement window.prompt). */
 let _ksModalResolve = null;
-let _ksModalMode = 'create'; // 'create' | 'unlock'
+let _ksModalMode = 'create'; // 'create' | 'unlock' | 'replace'
 
 function openKeystoreModal(opts) {
   const options = opts || {};
-  _ksModalMode = options.mode === 'unlock' ? 'unlock' : 'create';
+  _ksModalMode = options.mode === 'unlock'
+    ? 'unlock'
+    : (options.mode === 'replace' ? 'replace' : 'create');
   const overlay = document.getElementById('setup-overlay');
   const loginStep = document.getElementById('setup-step-login');
   const ksStep = document.getElementById('setup-step-keystore');
@@ -934,12 +940,11 @@ function openKeystoreModal(opts) {
   if (pwEl) pwEl.value = options.password != null ? String(options.password) : '';
   if (pinEl) {
     pinEl.value = '';
-    pinEl.parentElement
-      ? (pinEl.style.display = _ksModalMode === 'unlock' ? 'none' : '')
-      : null;
+    const hidePin = _ksModalMode === 'unlock';
+    pinEl.style.display = hidePin ? 'none' : '';
     const pinLabel = pinEl.previousElementSibling;
     if (pinLabel && pinLabel.tagName === 'LABEL') {
-      pinLabel.style.display = _ksModalMode === 'unlock' ? 'none' : '';
+      pinLabel.style.display = hidePin ? 'none' : '';
     }
   }
   if (msgEl) {
@@ -947,7 +952,9 @@ function openKeystoreModal(opts) {
     msgEl.textContent = options.hint || '';
   }
   if (submitBtn) {
-    submitBtn.textContent = _ksModalMode === 'unlock' ? 'Unlock keystore' : 'Create keystore';
+    submitBtn.textContent = _ksModalMode === 'unlock'
+      ? 'Unlock keystore'
+      : (_ksModalMode === 'replace' ? 'Replace keystore' : 'Create keystore');
     submitBtn.disabled = false;
   }
   if (cancelBtn) {
@@ -993,7 +1000,7 @@ async function submitKeystoreModal() {
     if (msgEl) { msgEl.style.color = '#f87171'; msgEl.textContent = 'Password is required.'; }
     return;
   }
-  if (msgEl) { msgEl.style.color = '#D4AF37'; msgEl.textContent = _ksModalMode === 'unlock' ? 'Unlocking…' : 'Creating keystore…'; }
+  if (msgEl) { msgEl.style.color = '#D4AF37'; msgEl.textContent = _ksModalMode === 'unlock' ? 'Unlocking…' : (_ksModalMode === 'replace' ? 'Replacing keystore…' : 'Creating keystore…'); }
   if (submitBtn) submitBtn.disabled = true;
   try {
     if (_ksModalMode === 'unlock') {
@@ -1008,6 +1015,9 @@ async function submitKeystoreModal() {
       v1Msg('Keystore: loaded (address ' + ((res.addresses || [])[0] || '') + ')', true);
       closeKeystoreModal({ ok: true, unlocked: true, addresses: res.addresses });
       await refreshKeystoreStatus();
+      if (res.restarted) {
+        addLog('[Validator] node restarted with unlocked keystore — Attesting: yes when on-chain active', 'success');
+      }
       return;
     }
     const token = v1Jwt();
@@ -1024,13 +1034,14 @@ async function submitKeystoreModal() {
       password,
       pin: pin || undefined,
       apiBase: 'https://goldminequant.org',
+      replace: _ksModalMode === 'replace',
     });
     if (ks && ks.ok) {
       const path = ks.path || '';
       addLog('[Keystore] written ' + path, 'success');
       addLog('[Validator] keystore loaded', 'success');
       v1Msg('Keystore: loaded (address ' + ((ks.addresses || [])[0] || '') + ')', true);
-      closeKeystoreModal({ ok: true, created: !!ks.created, path, addresses: ks.addresses });
+      closeKeystoreModal({ ok: true, created: !!ks.created, replaced: !!ks.replaced, path, addresses: ks.addresses });
       finishSetupAfterKeystore();
       return;
     }
@@ -1074,6 +1085,23 @@ async function v1CreateKeystore() {
     mode: 'create',
     password: (document.getElementById('setup-password') || {}).value || '',
     hint: 'Password + PIN (if your account has a transaction PIN).',
+  });
+}
+
+async function v1ReplaceKeystore() {
+  if (!v1Jwt()) {
+    v1Msg('Log in first (Setup) so Replace keystore can re-export your signing key.', false);
+    return;
+  }
+  if (!confirm('Replace keystore.json? The existing file will be overwritten with a fresh export from goldmine.')) {
+    return;
+  }
+  v1Msg('Replace keystore…', true);
+  await openKeystoreModal({
+    mode: 'replace',
+    allowSkip: false,
+    password: (document.getElementById('setup-password') || {}).value || '',
+    hint: 'Re-exports your Dilithium key and overwrites keystore.json.',
   });
 }
 
@@ -1156,17 +1184,26 @@ async function v1SubmitSigned(txType, amountGog) {
 async function refreshValidatorV1() {
   await refreshKeystoreStatus();
   try {
-    const [st, vl] = await Promise.all([
-      fetch(LOCAL + '/api/status').then(r => r.json()).catch(() => null),
-      fetch(LOCAL + '/api/validators').then(r => r.json()).catch(() =>
-        fetch(API + '/api/validators').then(r => r.json()).catch(() => null)),
+    // Attesting / last_attested come from the local fullnode status server.
+    // Stake/status MUST use the network validator set — sled nodes never apply
+    // ValidatorRegister into Postgres, so local /api/validators is often empty
+    // (and a 404 JSON body used to short-circuit the goldmine fallback).
+    const [st, vlLocal, vlNet] = await Promise.all([
+      fetch(LOCAL + '/api/status').then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch(LOCAL + '/api/validators').then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch(API + '/api/validators').then(r => r.ok ? r.json() : null).catch(() => null),
     ]);
+    const vl = (vlNet && Array.isArray(vlNet.validators) && vlNet.validators.length)
+      ? vlNet
+      : (vlLocal && Array.isArray(vlLocal.validators) && vlLocal.validators.length)
+        ? vlLocal
+        : (vlNet || vlLocal);
     const net = document.getElementById('v1-network');
-    if (net && st) {
-      const active = (vl && (vl.active_count != null)) ? vl.active_count : (st.active_validators ?? 0);
-      net.textContent = 'Finalized: ' + (st.finalized_height ?? vl?.finalized_height ?? 0) +
+    if (net && (st || vl)) {
+      const active = (vl && (vl.active_count != null)) ? vl.active_count : (st?.active_validators ?? 0);
+      net.textContent = 'Finalized: ' + (st?.finalized_height ?? vl?.finalized_height ?? 0) +
         ' · Active validators: ' + active +
-        ' · Activation height: ' + (st.validators_activation_height ?? 'disabled');
+        ' · Activation height: ' + (st?.validators_activation_height ?? 'disabled');
     }
     const set = (id, t) => { const e = document.getElementById(id); if (e) e.textContent = t; };
     if (st) {
