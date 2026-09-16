@@ -34,6 +34,7 @@ test('miner log filter and status', () => {
   assert.equal(miningStatusLabel(false, { state: 'mining', active: true }), 'Stopped');
   assert.equal(miningStatusLabel(true, { state: 'mining', active: true }), 'Mining');
   assert.equal(miningStatusLabel(true, { state: 'paused' }), 'Paused');
+  assert.equal(miningStatusLabel(true, { state: 'isolated' }), 'Isolated — not mining');
   assert.equal(miningStatusLabel(true, { state: 'syncing' }), 'Syncing');
   assert.equal(formatGoGX(316800000), '316.8');
 });

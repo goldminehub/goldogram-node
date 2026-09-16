@@ -713,7 +713,10 @@ async function fetchStatus() {
   renderRecentMined(mining.recent_blocks);
   const banner = document.getElementById('mining-sync-banner');
   if (banner) {
-    if (running && mining.state === 'syncing' && d.network_height) {
+    if (running && (mining.state === 'isolated' || mining.isolated)) {
+      banner.style.display = 'block';
+      banner.innerHTML = '<div style="color:#f87171;font-weight:600;">Isolated — not mining</div><div style="color:#888;font-size:12px;margin-top:4px;">No live seed connection, or local tip is ahead of the seed on a different chain. Mining paused; resyncing to the seed.</div>';
+    } else if (running && mining.state === 'syncing' && d.network_height) {
       showMinerSyncBanner(d.height || 0, d.network_height);
     } else if (banner) {
       banner.style.display = 'none';

@@ -29,6 +29,7 @@ function isMinerLogLine(line) {
 function miningStatusLabel(childRunning, mining) {
   if (!childRunning) return 'Stopped';
   const state = (mining && mining.state) || '';
+  if (state === 'isolated' || (mining && mining.isolated)) return 'Isolated — not mining';
   if (state === 'mining' || (mining && mining.active)) return 'Mining';
   if (state === 'syncing') return 'Syncing';
   if (state === 'paused') return 'Paused';
