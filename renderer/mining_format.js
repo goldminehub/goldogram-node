@@ -2,9 +2,79 @@
 
 function formatHashrate(hs) {
   const n = Number(hs) || 0;
+  if (n >= 1e9) return (n / 1e9).toFixed(2) + ' GH/s';
   if (n >= 1e6) return (n / 1e6).toFixed(2) + ' MH/s';
   if (n >= 1e3) return (n / 1e3).toFixed(2) + ' kH/s';
   return Math.round(n) + ' H/s';
+}
+
+/** Network tile: always MH/s or GH/s, two decimals. Sub-MH stays in MH/s (0.28 MH/s). */
+function formatNetworkHashrate(hs) {
+  const n = Number(hs);
+  const v = Number.isFinite(n) && n > 0 ? n : 0;
+  if (v >= 1e9) return (v / 1e9).toFixed(2) + ' GH/s';
+  return (v / 1e6).toFixed(2) + ' MH/s';
+}
+
+/**
+ * Chain hashrate (H/s) ≈ mean(2^difficulty) × blocks_per_second
+ * over the last window (up to 120 blocks). blocks_per_second uses the
+ * intervals between the oldest and newest timestamp.
+ * samples: [{ difficulty, timestamp }] oldest → newest.
+ */
+function networkHashrateHs(samples) {
+  if (!Array.isArray(samples) || samples.length < 2) return null;
+  const first = Number(samples[0].timestamp);
+  const last = Number(samples[samples.length - 1].timestamp);
+  const elapsed = last - first;
+  if (!(elapsed > 0)) return null;
+  const intervals = samples.length - 1;
+  const bps = intervals / elapsed;
+  let work = 0;
+  for (let i = 0; i < samples.length; i++) {
+    const d = Math.min(53, Math.max(0, Number(samples[i].difficulty) || 0));
+    work += Math.pow(2, d);
+  }
+  const hs = (work / samples.length) * bps;
+  if (!Number.isFinite(hs) || hs < 0) return null;
+  return hs;
+}
+
+/**
+ * Dashboard mining visual. Syncing shows a ring; mining is live;
+ * idle and isolated stay dim with a reason.
+ */
+function dashboardVisualState(input) {
+  const mining = (input && input.mining) || {};
+  const childRunning = !!(input && input.childRunning);
+  if (!childRunning) {
+    return { mode: 'idle', reason: 'Node stopped', progress: 0, hashrateText: '' };
+  }
+  if (mining.state === 'isolated' || mining.isolated) {
+    return {
+      mode: 'isolated',
+      reason: 'No live seed connection, or local tip is ahead of the seed.',
+      progress: 0,
+      hashrateText: '',
+    };
+  }
+  const syncing = (input && input.syncState) === 'syncing' || mining.state === 'syncing';
+  if (syncing) {
+    const total = Number(input && input.networkHeight) || 0;
+    const cur = Number(input && input.height) || 0;
+    const progress = total > 0 ? Math.min(100, (cur / total) * 100) : 0;
+    return { mode: 'syncing', reason: '', progress, hashrateText: '' };
+  }
+  if (mining.state === 'mining' || mining.active) {
+    return {
+      mode: 'mining',
+      reason: '',
+      progress: 100,
+      hashrateText: formatHashrate(mining.hashrate),
+    };
+  }
+  const reason = mining.state === 'paused' ? 'Paused' : 'Idle';
+  return { mode: 'idle', reason, progress: 0, hashrateText: '' };
 }
 
 function formatRelativeTime(unixSecs, nowMs) {
@@ -36,7 +106,16 @@ function miningStatusLabel(childRunning, mining) {
   return 'Idle';
 }
 
-const api = { formatHashrate, formatRelativeTime, formatGoGX, isMinerLogLine, miningStatusLabel };
+const api = {
+  formatHashrate,
+  formatNetworkHashrate,
+  networkHashrateHs,
+  dashboardVisualState,
+  formatRelativeTime,
+  formatGoGX,
+  isMinerLogLine,
+  miningStatusLabel,
+};
 if (typeof module === 'object' && module.exports) {
   module.exports = api;
 }

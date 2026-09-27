@@ -74,6 +74,12 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
 .badge-green{background:#0a2a0a;color:#4ade80;border:1px solid #1a4a1a;}
 .badge-yellow{background:#1a1200;color:#D4AF37;border:1px solid #2a2000;}
 .badge-red{background:#1a0000;color:#f87171;border:1px solid #3a0000;}
+.dash-account{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 16px 0;padding:10px 14px;background:#111;border:1px solid #1e1e1e;border-radius:8px;flex-shrink:0;}
+.dash-account-user{font-size:14px;font-weight:600;color:#e8e0cc;}
+.dash-account-meta{font-size:12px;color:#888;margin-top:2px;font-family:'SF Mono',monospace;}
+.dash-account-actions{display:flex;gap:8px;flex-shrink:0;}
+.dash-visual{flex:1;min-height:200px;margin:8px 16px;position:relative;background:#070707;border:1px solid #1e1e1e;border-radius:12px;overflow:hidden;}
+.dash-visual canvas{width:100%;height:100%;display:block;}
 </style>
 </head>
 <body>
@@ -180,7 +186,17 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
     </div>
 
     <div class="panel active" id="panel-dashboard">
-      <div id="dash-validator-hint" style="display:none;margin:0 16px 12px;padding:10px 14px;background:#0a1a00;border:1px solid #1a3a00;border-radius:8px;font-size:13px;color:#4ade80;line-height:1.4;"></div>
+      <div class="dash-account" id="dash-account">
+        <div>
+          <div class="dash-account-user" id="dash-account-user">Not logged in</div>
+          <div class="dash-account-meta" id="dash-account-meta"></div>
+        </div>
+        <div class="dash-account-actions">
+          <button class="btn btn-secondary" id="dash-switch" type="button" onclick="switchAccount()">Log in</button>
+          <button class="btn btn-secondary" id="dash-logout" type="button" onclick="logoutAccount()" style="display:none">Logout</button>
+        </div>
+      </div>
+      <div id="dash-validator-hint" style="display:none;margin:12px 16px 0;padding:10px 14px;background:#0a1a00;border:1px solid #1a3a00;border-radius:8px;font-size:13px;color:#4ade80;line-height:1.4;"></div>
       <div class="stats-grid">
         <div class="stat-card">
           <div class="stat-label">Block Height</div>
@@ -200,17 +216,15 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
         <div class="stat-card">
           <div class="stat-label">Network Hashrate</div>
           <div class="stat-value" id="stat-hash">—</div>
-          <div class="stat-sub">MH/s</div>
+          <div class="stat-sub" id="stat-hash-sub">MH/s</div>
         </div>
       </div>
-      <div style="padding:0 16px 8px;flex-shrink:0;">
-        <div class="section-title">Recent Logs</div>
+      <div class="dash-visual" id="dash-visual">
+        <canvas id="dash-mine-canvas"></canvas>
       </div>
-      <div class="log-container" id="dash-log"></div>
       <div class="controls">
         <button class="btn btn-primary" id="btn-start" onclick="startNode()">Start Node</button>
         <button class="btn btn-danger" id="btn-stop" onclick="stopNode()" style="display:none">Stop Node</button>
-        <button class="btn btn-secondary" onclick="clearLogs()">Clear Logs</button>
         <span id="sync-state-text" style="margin-left:12px;"></span>
         <span id="last-block-text" style="font-size:12px;color:#666;"></span>
         <span style="margin-left:auto;font-size:12px;color:#444;" id="uptime-text"></span>
@@ -224,7 +238,8 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
       </div>
       <div class="log-container" id="full-log"></div>
       <div class="controls">
-        <button class="btn btn-secondary" onclick="clearLogs()">Clear</button>
+        <button class="btn btn-secondary" onclick="clearLogs()">Clear Logs</button>
+        <button class="btn btn-secondary" onclick="copyLogs()">Copy</button>
         <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#666;cursor:pointer;">
           <input type="checkbox" id="auto-scroll" checked style="accent-color:#D4AF37;"> Auto-scroll
         </label>
@@ -473,6 +488,7 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
 </div>
 
 <script src="setup_login.js"></script>
+<script src="mine_visual.js"></script>
 <script src="mining_format.js"></script>
 <script>
 let running = false;
@@ -507,12 +523,12 @@ function addLog(line, type = 'info') {
   const entry = {line, type, time};
   logLines.push(entry);
   if (logLines.length > 500) logLines.shift();
-  appendLogEl('dash-log', entry, 100);
   appendLogEl('full-log', entry, 500);
 }
 
 function appendLogEl(containerId, entry, max) {
   const container = document.getElementById(containerId);
+  if (!container) return;
   const el = document.createElement('div');
   el.className = 'log-line ' + entry.type;
   el.innerHTML = '<span class="log-time">' + entry.time + '</span>' + escHtml(entry.line);
@@ -528,8 +544,27 @@ function escHtml(s) {
 
 function clearLogs() {
   logLines = [];
-  document.getElementById('dash-log').innerHTML = '';
-  document.getElementById('full-log').innerHTML = '';
+  const full = document.getElementById('full-log');
+  if (full) full.innerHTML = '';
+}
+
+function copyLogs() {
+  const text = logLines.map(function (e) { return e.time + ' ' + e.line; }).join('\n');
+  const done = function () { addLog('Logs copied', 'success'); };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done).catch(function () { fallbackCopy(text, done); });
+    return;
+  }
+  fallbackCopy(text, done);
+}
+
+function fallbackCopy(text, done) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); if (done) done(); } catch (_) {}
+  document.body.removeChild(ta);
 }
 
 function setMiningStopped(reason) {
@@ -639,6 +674,50 @@ async function stopNode() {
   addLog('Node stopped.', 'warn');
 }
 
+let lastNetworkHashPaint = 0;
+let dashVisualState = { mode: 'idle', reason: 'Node stopped', progress: 0, hashrateText: '' };
+
+function paintNetworkHash(d) {
+  const now = Date.now();
+  const el = document.getElementById('stat-hash');
+  if (!el) return;
+  if (lastNetworkHashPaint && now - lastNetworkHashPaint < 10000 && el.textContent !== '—') return;
+  const mf = window.MiningFormat || {};
+  let hs = null;
+  if (mf.networkHashrateHs && Array.isArray(d.pow_window)) {
+    hs = mf.networkHashrateHs(d.pow_window);
+  }
+  if (hs == null && typeof d.network_hashrate === 'number' && Number.isFinite(d.network_hashrate)) {
+    hs = d.network_hashrate;
+  }
+  const synced = d.sync_state === 'synced';
+  const sub = document.getElementById('stat-hash-sub');
+  if (synced || hs != null) {
+    const text = mf.formatNetworkHashrate ? mf.formatNetworkHashrate(hs || 0) : ((hs || 0) + ' H/s');
+    const parts = String(text).split(' ');
+    el.textContent = parts[0];
+    if (sub) sub.textContent = parts.slice(1).join(' ') || 'MH/s';
+    lastNetworkHashPaint = now;
+  } else {
+    el.textContent = '—';
+    if (sub) sub.textContent = 'MH/s';
+  }
+}
+
+function paintDashVisual(childRunning, d) {
+  const mf = window.MiningFormat || {};
+  const mining = d.mining || {};
+  if (mf.dashboardVisualState) {
+    dashVisualState = mf.dashboardVisualState({
+      childRunning: childRunning,
+      mining: mining,
+      syncState: d.sync_state,
+      height: d.height,
+      networkHeight: d.network_height,
+    });
+  }
+}
+
 async function fetchStatus() {
   const res = await window.node?.getStatus();
   const childRunning = !!(running && res && res.running !== false);
@@ -648,6 +727,7 @@ async function fetchStatus() {
       mStatus.textContent = 'Stopped';
       mStatus.style.color = '#555';
     }
+    dashVisualState = { mode: 'idle', reason: 'Node stopped', progress: 0, hashrateText: '' };
     if (!res?.ok) return;
   }
   if (!res?.ok) return;
@@ -658,9 +738,8 @@ async function fetchStatus() {
   document.getElementById('stat-peers').textContent = d.peers ?? d.connected_peers ?? d.peer_count ?? '0';
   const diff = d.difficulty;
   document.getElementById('stat-diff').textContent = (diff == null || diff === 0) ? 'n/a' : diff;
-  const hr = d.network_hashrate ?? d.hashrate;
-  document.getElementById('stat-hash').textContent =
-    (hr == null || hr === 0) ? 'n/a' : (hr > 1e6 ? (hr/1e6).toFixed(2) + 'M' : Number(hr).toLocaleString());
+  paintNetworkHash(d);
+  paintDashVisual(childRunning, d);
 
   // Sync state + last block time (fullnode local status endpoint)
   const sync = document.getElementById('sync-state-text');
@@ -1303,6 +1382,12 @@ async function setupLogin() {
       setupToken = (applied && applied.token) || data.token;
       setupAddress = (applied && applied.address) || (data.wallet && data.wallet.gog_address) || '';
       setupUsername = (applied && applied.username) || username;
+      const sessionApi = window.GoldogramSetupLogin || {};
+      const session = sessionApi.sessionFromLogin
+        ? sessionApi.sessionFromLogin(data, username)
+        : { username: setupUsername, address: setupAddress };
+      if (sessionApi.writeLoginSession) sessionApi.writeLoginSession(localStorage, session);
+      if (sessionApi.renderAccountHeader) sessionApi.renderAccountHeader(document, session);
       if (setupAddress) {
         try { localStorage.setItem('gog_address', setupAddress); } catch (_) {}
       }
@@ -1331,6 +1416,27 @@ async function setupLogin() {
 
 function setupSkip() {
   document.getElementById('setup-overlay').style.display = 'none';
+}
+
+function switchAccount() {
+  const overlay = document.getElementById('setup-overlay');
+  const loginStep = document.getElementById('setup-step-login');
+  const ksStep = document.getElementById('setup-step-keystore');
+  if (ksStep) ksStep.style.display = 'none';
+  if (loginStep) loginStep.style.display = 'block';
+  if (overlay) overlay.style.display = 'flex';
+  const msg = document.getElementById('setup-msg');
+  if (msg) msg.textContent = '';
+}
+
+function logoutAccount() {
+  const sessionApi = window.GoldogramSetupLogin || {};
+  if (sessionApi.clearLoginSession) sessionApi.clearLoginSession(localStorage);
+  setupToken = '';
+  setupAddress = '';
+  setupUsername = '';
+  if (sessionApi.renderAccountHeader) sessionApi.renderAccountHeader(document, null);
+  switchAccount();
 }
 
 // ── MINER ────────────────────────────────────────────────
@@ -1412,6 +1518,22 @@ window.miner.onStopped((msg) => {
 
 // Auto-fill address from login session; Mine on this node defaults ON (v1.2.24+)
 window.addEventListener('DOMContentLoaded', () => {
+  const sessionApi = window.GoldogramSetupLogin || {};
+  const savedSession = sessionApi.readLoginSession ? sessionApi.readLoginSession(localStorage) : null;
+  if (sessionApi.renderAccountHeader) sessionApi.renderAccountHeader(document, savedSession);
+  if (savedSession) {
+    setupUsername = savedSession.username || '';
+    setupAddress = savedSession.address || '';
+    const overlay = document.getElementById('setup-overlay');
+    if (overlay) overlay.style.display = 'none';
+    if (savedSession.address) {
+      try { localStorage.setItem('gog_address', savedSession.address); } catch (_) {}
+    }
+  }
+  const canvas = document.getElementById('dash-mine-canvas');
+  if (canvas && window.MineVisual && window.MineVisual.startMineVisual) {
+    window.MineVisual.startMineVisual(canvas, function () { return dashVisualState; });
+  }
   const saved = localStorage.getItem('gog_address');
   if (saved && document.getElementById('miner-address')) {
     document.getElementById('miner-address').value = saved;

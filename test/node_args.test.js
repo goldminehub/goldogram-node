@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { buildNodeArgs } = require('../src/node_args');
+const { buildNodeArgs, appVersionEnv } = require('../src/node_args');
 
 test('mine-on-this-node argv is --fullnode then --mine (never miner-only)', () => {
   const args = buildNodeArgs({
@@ -55,4 +55,9 @@ test('keystore + address adds --validator without --stake', () => {
   assert.ok(args.includes('--validator-address'));
   assert.equal(args[args.indexOf('--validator-address') + 1], 'GoValAddr');
   assert.ok(!args.includes('--stake'));
+});
+
+test('app version env is the desktop version the Hello advertises', () => {
+  assert.deepEqual(appVersionEnv('1.2.35'), { GOGOGRAM_APP_VERSION: '1.2.35' });
+  assert.deepEqual(appVersionEnv('  '), {});
 });

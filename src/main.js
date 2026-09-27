@@ -3,7 +3,7 @@ const { autoUpdater } = require('electron-updater');
 const { spawn, spawnSync } = require('child_process');
 const path = require('path');
 const os = require('os');
-const { buildNodeArgs } = require('./node_args');
+const { buildNodeArgs, appVersionEnv } = require('./node_args');
 const {
   defaultKeystorePath,
   listKeystoreAddresses,
@@ -282,6 +282,7 @@ async function startFullNode(opts = {}) {
     : DEFAULT_SEEDS;
   const env = {
     ...process.env,
+    ...appVersionEnv(app.getVersion()),
     SEED_NODES: seedList,
     API_NODES: DEFAULT_API_NODES,
     ...(datadir ? { GOLDOGRAM_DATADIR: datadir } : {}),

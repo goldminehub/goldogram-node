@@ -4,17 +4,61 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
   formatHashrate,
+  formatNetworkHashrate,
+  networkHashrateHs,
+  dashboardVisualState,
   formatRelativeTime,
   formatGoGX,
   isMinerLogLine,
   miningStatusLabel,
 } = require('../renderer/mining_format');
 
-test('formatHashrate H/s kH/s MH/s', () => {
+test('formatHashrate H/s kH/s MH/s GH/s', () => {
   assert.equal(formatHashrate(0), '0 H/s');
   assert.equal(formatHashrate(500), '500 H/s');
   assert.equal(formatHashrate(12300), '12.30 kH/s');
   assert.equal(formatHashrate(1.23e6), '1.23 MH/s');
+  assert.equal(formatHashrate(2.5e9), '2.50 GH/s');
+});
+
+test('network hashrate from last 120 blocks is MH/s, never n/a', () => {
+  const samples = [];
+  for (let i = 0; i < 120; i++) {
+    samples.push({ difficulty: 24, timestamp: 1_000_000 + i * 10 });
+  }
+  const hs = networkHashrateHs(samples);
+  assert.ok(hs > 1.6e6 && hs < 1.7e6);
+  assert.equal(formatNetworkHashrate(hs), '1.68 MH/s');
+  assert.equal(formatNetworkHashrate(0), '0.00 MH/s');
+  assert.equal(formatNetworkHashrate(1.07e9), '1.07 GH/s');
+  assert.equal(networkHashrateHs([{ difficulty: 24, timestamp: 1 }]), null);
+});
+
+test('dashboard visual follows sync, mine, idle, and isolated', () => {
+  assert.equal(dashboardVisualState({ childRunning: false }).mode, 'idle');
+  assert.match(dashboardVisualState({ childRunning: false }).reason, /stopped/i);
+  const sync = dashboardVisualState({
+    childRunning: true,
+    syncState: 'syncing',
+    height: 50,
+    networkHeight: 200,
+    mining: { state: 'syncing' },
+  });
+  assert.equal(sync.mode, 'syncing');
+  assert.equal(sync.progress, 25);
+  const mining = dashboardVisualState({
+    childRunning: true,
+    syncState: 'synced',
+    mining: { state: 'mining', active: true, hashrate: 2e6 },
+  });
+  assert.equal(mining.mode, 'mining');
+  assert.equal(mining.hashrateText, '2.00 MH/s');
+  const iso = dashboardVisualState({
+    childRunning: true,
+    mining: { state: 'isolated', isolated: true },
+  });
+  assert.equal(iso.mode, 'isolated');
+  assert.match(iso.reason, /seed/);
 });
 
 test('formatRelativeTime', () => {

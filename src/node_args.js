@@ -30,4 +30,11 @@ function buildNodeArgs({
   return args;
 }
 
-module.exports = { buildNodeArgs };
+/** Env the core reads when building the P2P Hello user-agent. */
+function appVersionEnv(version) {
+  const v = String(version || '').trim();
+  if (!v) return {};
+  return { GOGOGRAM_APP_VERSION: v };
+}
+
+module.exports = { buildNodeArgs, appVersionEnv };

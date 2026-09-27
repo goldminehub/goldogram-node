@@ -85,10 +85,96 @@
     return { token, address, username: displayName, goDashboard: !keepOverlay, keepOverlay };
   }
 
+  const SESSION_KEY = 'goldogram_login_session';
+
+  function sessionFromLogin(data, username) {
+    const address =
+      data && data.wallet && data.wallet.gog_address
+        ? String(data.wallet.gog_address).trim()
+        : '';
+    const name =
+      data && data.user && data.user.username
+        ? String(data.user.username).trim()
+        : String(username || '').trim();
+    if (!name && !address) return null;
+    return { username: name, address };
+  }
+
+  function shortGogAddress(address) {
+    const a = String(address || '').trim();
+    if (!a) return '';
+    if (a.length <= 14) return a;
+    return a.slice(0, 6) + '…' + a.slice(-4);
+  }
+
+  function readLoginSession(storage) {
+    if (!storage || typeof storage.getItem !== 'function') return null;
+    try {
+      const raw = storage.getItem(SESSION_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      const username = parsed && parsed.username ? String(parsed.username).trim() : '';
+      const address = parsed && parsed.address ? String(parsed.address).trim() : '';
+      if (!username && !address) return null;
+      return { username, address };
+    } catch {
+      return null;
+    }
+  }
+
+  function writeLoginSession(storage, session) {
+    if (!storage || typeof storage.setItem !== 'function') return false;
+    if (!session || (!session.username && !session.address)) {
+      try { storage.removeItem(SESSION_KEY); } catch { /* ignore */ }
+      return false;
+    }
+    try {
+      storage.setItem(SESSION_KEY, JSON.stringify({
+        username: String(session.username || ''),
+        address: String(session.address || ''),
+      }));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function clearLoginSession(storage) {
+    if (!storage || typeof storage.removeItem !== 'function') return;
+    try { storage.removeItem(SESSION_KEY); } catch { /* ignore */ }
+  }
+
+  /** Username, short GoGX address, and the Reward address label. */
+  function renderAccountHeader(doc, session) {
+    const userEl = doc && doc.getElementById ? doc.getElementById('dash-account-user') : null;
+    const metaEl = doc && doc.getElementById ? doc.getElementById('dash-account-meta') : null;
+    const logout = doc && doc.getElementById ? doc.getElementById('dash-logout') : null;
+    const sw = doc && doc.getElementById ? doc.getElementById('dash-switch') : null;
+    const loggedIn = !!(session && (session.username || session.address));
+    if (userEl) userEl.textContent = loggedIn ? (session.username || 'Account') : 'Not logged in';
+    if (metaEl) {
+      if (loggedIn && session.address) {
+        metaEl.textContent = shortGogAddress(session.address) + ' · Reward address';
+      } else {
+        metaEl.textContent = '';
+      }
+    }
+    if (logout && logout.style) logout.style.display = loggedIn ? '' : 'none';
+    if (sw) sw.textContent = loggedIn ? 'Switch account' : 'Log in';
+    return loggedIn;
+  }
+
   return {
     setElValue,
     setElText,
     setElDisplay,
     applySetupLoginSuccess,
+    SESSION_KEY,
+    sessionFromLogin,
+    shortGogAddress,
+    readLoginSession,
+    writeLoginSession,
+    clearLoginSession,
+    renderAccountHeader,
   };
 });
