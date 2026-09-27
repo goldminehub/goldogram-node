@@ -78,8 +78,23 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
 .dash-account-user{font-size:14px;font-weight:600;color:#e8e0cc;}
 .dash-account-meta{font-size:12px;color:#888;margin-top:2px;font-family:'SF Mono',monospace;}
 .dash-account-actions{display:flex;gap:8px;flex-shrink:0;}
-.dash-visual{flex:1;min-height:200px;margin:8px 16px;position:relative;background:#070707;border:1px solid #1e1e1e;border-radius:12px;overflow:hidden;}
-.dash-visual canvas{width:100%;height:100%;display:block;}
+.dash-panel{flex:1;min-height:220px;margin:8px 16px;padding:14px 16px;background:#070707;border:1px solid #1e1e1e;border-radius:12px;overflow:auto;display:flex;flex-direction:column;gap:10px;}
+.dash-head{font-size:22px;font-weight:700;color:#e8e0cc;letter-spacing:0.2px;}
+.dash-head.mining{color:#D4AF37;}
+.dash-head.syncing{color:#e7c56a;}
+.dash-head.idle,.dash-head.isolated{color:#888;}
+.dash-bar{height:8px;background:#1a1a1a;border-radius:99px;overflow:hidden;}
+.dash-bar-fill{height:100%;background:#D4AF37;border-radius:99px;}
+.dash-spark{display:flex;align-items:center;gap:12px;}
+.dash-spark svg{flex:1;height:56px;display:block;}
+.dash-spark-now{font-size:16px;font-weight:650;color:#D4AF37;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.dash-net{font-size:12px;color:#888;}
+.dash-tips{display:flex;flex-direction:column;gap:4px;}
+.dash-tip{display:grid;grid-template-columns:88px 1fr 72px 1fr;gap:8px;font-size:12px;color:#aaa;padding:4px 6px;border-radius:6px;}
+.dash-tip.is-ours{color:#D4AF37;background:rgba(212,175,55,0.08);}
+.dash-tip.dim{color:#555;}
+.dash-tip .mono{font-family:'SF Mono',ui-monospace,monospace;}
+.dash-today{font-size:12px;color:#888;margin-top:auto;}
 </style>
 </head>
 <body>
@@ -219,9 +234,7 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
           <div class="stat-sub" id="stat-hash-sub">MH/s</div>
         </div>
       </div>
-      <div class="dash-visual" id="dash-visual">
-        <canvas id="dash-mine-canvas"></canvas>
-      </div>
+      <div class="dash-panel" id="dash-status"></div>
       <div class="controls">
         <button class="btn btn-primary" id="btn-start" onclick="startNode()">Start Node</button>
         <button class="btn btn-danger" id="btn-stop" onclick="stopNode()" style="display:none">Stop Node</button>
@@ -488,7 +501,7 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
 </div>
 
 <script src="setup_login.js"></script>
-<script src="mine_visual.js"></script>
+<script src="dash_status.js"></script>
 <script src="mining_format.js"></script>
 <script>
 let running = false;
@@ -663,7 +676,7 @@ async function startNode() {
   }
   setRunning(true);
   addLog('Node started. Connecting to network...', 'success');
-  statusInterval = setInterval(fetchStatus, 2000);
+  statusInterval = setInterval(fetchStatus, 5000);
   fetchStatus();
   return res;
 }
@@ -676,6 +689,7 @@ async function stopNode() {
 
 let lastNetworkHashPaint = 0;
 let dashVisualState = { mode: 'idle', reason: 'Node stopped', progress: 0, hashrateText: '' };
+let hashSamples = [];
 
 function paintNetworkHash(d) {
   const now = Date.now();
@@ -706,6 +720,7 @@ function paintNetworkHash(d) {
 
 function paintDashVisual(childRunning, d) {
   const mf = window.MiningFormat || {};
+  const ds = window.DashStatus || {};
   const mining = d.mining || {};
   if (mf.dashboardVisualState) {
     dashVisualState = mf.dashboardVisualState({
@@ -714,6 +729,36 @@ function paintDashVisual(childRunning, d) {
       syncState: d.sync_state,
       height: d.height,
       networkHeight: d.network_height,
+    });
+  }
+  const now = Date.now();
+  const localHs = Number(mining.hashrate) || 0;
+  if (ds.pushHashSample) hashSamples = ds.pushHashSample(hashSamples, localHs, now);
+  const reward = (mining.reward_address || document.getElementById('miner-address')?.value || '').trim();
+  let hs = null;
+  if (mf.networkHashrateHs && Array.isArray(d.pow_window)) hs = mf.networkHashrateHs(d.pow_window);
+  if (hs == null && typeof d.network_hashrate === 'number') hs = d.network_hashrate;
+  const networkText = (d.sync_state === 'synced' || hs != null)
+    ? (mf.formatNetworkHashrate ? mf.formatNetworkHashrate(hs || 0) : String(hs || 0))
+    : '—';
+  const tips = Array.isArray(d.recent_tips) && d.recent_tips.length
+    ? d.recent_tips
+    : (mining.recent_blocks || []).map(function (b) {
+        return { height: b.height, hash: b.hash, timestamp: b.ts, miner: reward };
+      });
+  const rows = ds.tickerRows
+    ? ds.tickerRows(tips, reward, now, mf.formatRelativeTime)
+    : [];
+  const totals = ds.todayTotals ? ds.todayTotals(mining.recent_blocks, now) : { blocks: 0, earnedMicro: 0 };
+  const earnedText = mf.formatGoGX ? mf.formatGoGX(totals.earnedMicro) : '0.0';
+  if (ds.renderDashPanel) {
+    ds.renderDashPanel(document.getElementById('dash-status'), {
+      state: dashVisualState,
+      samples: hashSamples,
+      currentText: mf.formatHashrate ? mf.formatHashrate(localHs) : dashVisualState.hashrateText,
+      networkText: networkText,
+      rows: rows,
+      today: { blocks: totals.blocks, earnedText: earnedText },
     });
   }
 }
@@ -728,7 +773,10 @@ async function fetchStatus() {
       mStatus.style.color = '#555';
     }
     dashVisualState = { mode: 'idle', reason: 'Node stopped', progress: 0, hashrateText: '' };
-    if (!res?.ok) return;
+    if (!res?.ok) {
+      if (window.DashStatus) paintDashVisual(false, { mining: {}, sync_state: 'idle', height: 0 });
+      return;
+    }
   }
   if (!res?.ok) return;
   const d = res.data;
@@ -1530,10 +1578,7 @@ window.addEventListener('DOMContentLoaded', () => {
       try { localStorage.setItem('gog_address', savedSession.address); } catch (_) {}
     }
   }
-  const canvas = document.getElementById('dash-mine-canvas');
-  if (canvas && window.MineVisual && window.MineVisual.startMineVisual) {
-    window.MineVisual.startMineVisual(canvas, function () { return dashVisualState; });
-  }
+  if (window.DashStatus) paintDashVisual(false, { mining: {}, sync_state: 'idle', height: 0 });
   const saved = localStorage.getItem('gog_address');
   if (saved && document.getElementById('miner-address')) {
     document.getElementById('miner-address').value = saved;
