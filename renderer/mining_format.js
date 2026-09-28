@@ -48,15 +48,7 @@ function dashboardVisualState(input) {
   const mining = (input && input.mining) || {};
   const childRunning = !!(input && input.childRunning);
   if (!childRunning) {
-    return { mode: 'idle', reason: 'Node stopped', progress: 0, hashrateText: '' };
-  }
-  if (mining.state === 'isolated' || mining.isolated) {
-    return {
-      mode: 'isolated',
-      reason: 'No live seed connection, or local tip is ahead of the seed.',
-      progress: 0,
-      hashrateText: '',
-    };
+    return { mode: 'stopped', reason: 'Node stopped', progress: 0, hashrateText: '' };
   }
   const syncing = (input && input.syncState) === 'syncing' || mining.state === 'syncing';
   if (syncing) {
@@ -65,16 +57,16 @@ function dashboardVisualState(input) {
     const progress = total > 0 ? Math.min(100, (cur / total) * 100) : 0;
     return { mode: 'syncing', reason: '', progress, hashrateText: '' };
   }
-  if (mining.state === 'mining' || mining.active) {
+  const miningOn = mining.state === 'mining' || !!mining.active;
+  if (miningOn) {
     return {
-      mode: 'mining',
+      mode: 'synced-mining',
       reason: '',
       progress: 100,
       hashrateText: formatHashrate(mining.hashrate),
     };
   }
-  const reason = mining.state === 'paused' ? 'Paused' : 'Idle';
-  return { mode: 'idle', reason, progress: 0, hashrateText: '' };
+  return { mode: 'synced-off', reason: '', progress: 100, hashrateText: '' };
 }
 
 function formatRelativeTime(unixSecs, nowMs) {

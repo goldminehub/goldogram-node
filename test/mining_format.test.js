@@ -34,9 +34,8 @@ test('network hashrate from last 120 blocks is MH/s, never n/a', () => {
   assert.equal(networkHashrateHs([{ difficulty: 24, timestamp: 1 }]), null);
 });
 
-test('dashboard visual follows sync, mine, idle, and isolated', () => {
-  assert.equal(dashboardVisualState({ childRunning: false }).mode, 'idle');
-  assert.match(dashboardVisualState({ childRunning: false }).reason, /stopped/i);
+test('dashboard visual follows sync, mine, and a stopped process', () => {
+  assert.equal(dashboardVisualState({ childRunning: false }).mode, 'stopped');
   const sync = dashboardVisualState({
     childRunning: true,
     syncState: 'syncing',
@@ -51,14 +50,14 @@ test('dashboard visual follows sync, mine, idle, and isolated', () => {
     syncState: 'synced',
     mining: { state: 'mining', active: true, hashrate: 2e6 },
   });
-  assert.equal(mining.mode, 'mining');
+  assert.equal(mining.mode, 'synced-mining');
   assert.equal(mining.hashrateText, '2.00 MH/s');
-  const iso = dashboardVisualState({
+  const off = dashboardVisualState({
     childRunning: true,
-    mining: { state: 'isolated', isolated: true },
+    syncState: 'synced',
+    mining: { state: 'idle', active: false },
   });
-  assert.equal(iso.mode, 'isolated');
-  assert.match(iso.reason, /seed/);
+  assert.equal(off.mode, 'synced-off');
 });
 
 test('formatRelativeTime', () => {

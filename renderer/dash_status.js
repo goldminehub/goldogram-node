@@ -22,17 +22,14 @@ function pushHashSample(buf, hs, nowMs) {
 
 function headline(state) {
   var mode = state && state.mode;
-  if (mode === 'syncing') {
-    var pct = Math.max(0, Math.min(100, Math.round(Number(state.progress) || 0)));
-    return 'Syncing ' + pct + ' %';
+  if (mode === 'syncing') return 'Syncing…';
+  if (mode === 'synced-mining' || mode === 'mining') return 'Synced — mining';
+  if (mode === 'synced-off') return 'Synced — mining off';
+  if (mode === 'stopped' || (mode === 'idle' && state && state.reason === 'Node stopped')) {
+    return 'Node stopped';
   }
-  if (mode === 'mining') {
-    return 'Mining · ' + (state.hashrateText || '0 H/s');
-  }
-  if (mode === 'isolated') {
-    return 'Isolated — ' + (state.reason || 'not mining');
-  }
-  return 'Idle — ' + ((state && state.reason) || 'Idle');
+  if (mode === 'isolated') return 'Synced — mining off';
+  return 'Node stopped';
 }
 
 function shortHash(hash) {
@@ -71,6 +68,20 @@ function sparklinePoints(samples, width, height) {
     out.push(x.toFixed(1) + ',' + y.toFixed(1));
   }
   return out.join(' ');
+}
+
+function earnedTodayForAccount(report, account) {
+  var who = String(account || '').trim();
+  var list = (report && report.producers) || [];
+  var hit = null;
+  for (var i = 0; i < list.length; i++) {
+    if (String(list[i].producer || '') === who) hit = list[i];
+  }
+  return {
+    blocks: hit ? Number(hit.blocks) || 0 : 0,
+    earnedMicro: hit ? Number(hit.earned_micro) || 0 : 0,
+    perBlockMicro: Number(report && report.per_block_micro) || 0,
+  };
 }
 
 function todayTotals(recent, nowMs) {
@@ -121,7 +132,7 @@ function renderDashPanel(el, model) {
   var current = m.currentText || state.hashrateText || '0 H/s';
   var net = m.networkText || '—';
   var rows = m.rows || [];
-  var today = m.today || { blocks: 0, earnedText: '0.0' };
+  var today = m.today || { blocks: 0, earnedText: '0.0', perBlockText: '' };
   var bar = syncing
     ? '<div class="dash-bar"><div class="dash-bar-fill" style="width:' + pct.toFixed(1) + '%"></div></div>'
     : '';
@@ -146,7 +157,8 @@ function renderDashPanel(el, model) {
     '</div>' +
     '<div class="dash-net">Network ' + esc(net) + '</div>' +
     '<div class="dash-tips">' + rowHtml + '</div>' +
-    '<div class="dash-today">Blocks found today: ' + Number(today.blocks) + ' · Earned today: ' + esc(today.earnedText) + ' GoGX</div>';
+    '<div class="dash-today">Blocks found today: ' + Number(today.blocks) + ' · Earned today: ' + esc(today.earnedText) + ' GoGX' +
+      (today.perBlockText ? ' (' + esc(today.perBlockText) + ' GoGX/block)' : '') + '</div>';
 }
 
 var api = {
@@ -156,6 +168,7 @@ var api = {
   shortHash: shortHash,
   sparklinePoints: sparklinePoints,
   todayTotals: todayTotals,
+  earnedTodayForAccount: earnedTodayForAccount,
   tickerRows: tickerRows,
   renderDashPanel: renderDashPanel,
 };

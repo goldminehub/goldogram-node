@@ -688,7 +688,7 @@ async function stopNode() {
 }
 
 let lastNetworkHashPaint = 0;
-let dashVisualState = { mode: 'idle', reason: 'Node stopped', progress: 0, hashrateText: '' };
+let dashVisualState = { mode: 'stopped', reason: 'Node stopped', progress: 0, hashrateText: '' };
 let hashSamples = [];
 
 function paintNetworkHash(d) {
@@ -749,8 +749,18 @@ function paintDashVisual(childRunning, d) {
   const rows = ds.tickerRows
     ? ds.tickerRows(tips, reward, now, mf.formatRelativeTime)
     : [];
-  const totals = ds.todayTotals ? ds.todayTotals(mining.recent_blocks, now) : { blocks: 0, earnedMicro: 0 };
+  const account = (mining.reward_address || document.getElementById('miner-address')?.value || setupAddress || '').trim();
+  let totals = { blocks: 0, earnedMicro: 0 };
+  let perBlockMicro = 0;
+  if (d.earned_today && ds.earnedTodayForAccount) {
+    const earned = ds.earnedTodayForAccount(d.earned_today, account);
+    totals = { blocks: earned.blocks, earnedMicro: earned.earnedMicro };
+    perBlockMicro = earned.perBlockMicro;
+  } else if (ds.todayTotals) {
+    totals = ds.todayTotals(mining.recent_blocks, now);
+  }
   const earnedText = mf.formatGoGX ? mf.formatGoGX(totals.earnedMicro) : '0.0';
+  const perBlockText = perBlockMicro && mf.formatGoGX ? mf.formatGoGX(perBlockMicro) : '';
   if (ds.renderDashPanel) {
     ds.renderDashPanel(document.getElementById('dash-status'), {
       state: dashVisualState,
@@ -758,21 +768,22 @@ function paintDashVisual(childRunning, d) {
       currentText: mf.formatHashrate ? mf.formatHashrate(localHs) : dashVisualState.hashrateText,
       networkText: networkText,
       rows: rows,
-      today: { blocks: totals.blocks, earnedText: earnedText },
+      today: { blocks: totals.blocks, earnedText: earnedText, perBlockText: perBlockText },
     });
   }
 }
 
 async function fetchStatus() {
   const res = await window.node?.getStatus();
-  const childRunning = !!(running && res && res.running !== false);
-  if (!childRunning) {
+  const processUp = !!(res && (res.running || (res.ok && res.data)));
+  const childRunning = processUp;
+  if (!processUp) {
     const mStatus = document.getElementById('miner-stat-status');
     if (mStatus) {
       mStatus.textContent = 'Stopped';
       mStatus.style.color = '#555';
     }
-    dashVisualState = { mode: 'idle', reason: 'Node stopped', progress: 0, hashrateText: '' };
+    dashVisualState = { mode: 'stopped', reason: 'Node stopped', progress: 0, hashrateText: '' };
     if (!res?.ok) {
       if (window.DashStatus) paintDashVisual(false, { mining: {}, sync_state: 'idle', height: 0 });
       return;
