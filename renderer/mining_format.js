@@ -98,7 +98,7 @@ function miningStatusLabel(childRunning, mining) {
   return 'Idle';
 }
 
-const api = {
+const miningFormatApi = {
   formatHashrate,
   formatNetworkHashrate,
   networkHashrateHs,
@@ -109,8 +109,8 @@ const api = {
   miningStatusLabel,
 };
 if (typeof module === 'object' && module.exports) {
-  module.exports = api;
+  module.exports = miningFormatApi;
 }
 if (typeof window !== 'undefined') {
-  window.MiningFormat = api;
+  window.MiningFormat = miningFormatApi;
 }

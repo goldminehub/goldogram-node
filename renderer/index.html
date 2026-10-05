@@ -99,6 +99,17 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
 </head>
 <body>
 
+<div id="fatal-error-overlay" style="display:none;position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,0.92);align-items:center;justify-content:center;padding:24px;">
+  <div style="max-width:520px;width:100%;background:#141414;border:1px solid #D4AF37;border-radius:12px;padding:20px;">
+    <div style="color:#D4AF37;font-weight:700;font-size:15px;margin-bottom:8px;">Something went wrong</div>
+    <pre id="fatal-error-text" style="white-space:pre-wrap;word-break:break-word;color:#e8e0cc;font-size:12px;max-height:240px;overflow:auto;background:#0d0d0d;padding:12px;border-radius:8px;margin:0 0 12px;"></pre>
+    <div style="display:flex;gap:8px;">
+      <button type="button" id="fatal-error-copy" style="padding:8px 14px;background:#D4AF37;color:#000;border:none;border-radius:6px;font-weight:600;cursor:pointer;">Copy error</button>
+      <button type="button" id="fatal-error-dismiss" style="padding:8px 14px;background:#222;color:#ccc;border:1px solid #333;border-radius:6px;cursor:pointer;">Dismiss</button>
+    </div>
+  </div>
+</div>
+
 <div id="setup-overlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:#0a0a0a;z-index:9999;display:flex;align-items:center;justify-content:center;">
   <div style="width:380px;background:#111;border:1px solid #1e1e1e;border-radius:16px;padding:32px;">
     <div style="text-align:center;margin-bottom:28px;">
@@ -115,7 +126,7 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
       <input id="setup-username" placeholder="Username" style="width:100%;background:#0d0d0d;border:1px solid #222;border-radius:8px;padding:10px 14px;color:#e8e0cc;font-size:14px;outline:none;box-sizing:border-box;margin-bottom:10px;"/>
       <div style="position:relative;margin-bottom:16px;">
         <input id="setup-password" type="password" placeholder="Password" style="width:100%;background:#0d0d0d;border:1px solid #222;border-radius:8px;padding:10px 40px 10px 14px;color:#e8e0cc;font-size:14px;outline:none;box-sizing:border-box;"/>
-        <button type="button" class="pw-eye" data-target="setup-password" aria-label="Show password" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#888;padding:4px;font-size:14px;line-height:1;">👁</button>
+        <button type="button" class="pw-eye" data-target="setup-password" aria-label="Show password" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#888;padding:4px;font-size:14px;line-height:1;">Show</button>
       </div>
       <button onclick="setupLogin()" style="width:100%;padding:12px;background:linear-gradient(135deg,#D4AF37,#A67C00);color:#000;font-weight:700;font-size:14px;border:none;border-radius:8px;cursor:pointer;margin-bottom:10px;">Login to Goldogram</button>
       <div id="setup-msg" style="font-size:12px;text-align:center;min-height:20px;"></div>
@@ -126,12 +137,12 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
       <label style="font-size:11px;color:#666;display:block;margin-bottom:6px;">Login password</label>
       <div style="position:relative;margin-bottom:10px;">
         <input id="ks-modal-password" type="password" autocomplete="current-password" style="width:100%;background:#0d0d0d;border:1px solid #222;border-radius:8px;padding:10px 40px 10px 14px;color:#e8e0cc;font-size:14px;outline:none;box-sizing:border-box;"/>
-        <button type="button" class="pw-eye" data-target="ks-modal-password" aria-label="Show password" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#888;padding:4px;font-size:14px;line-height:1;">👁</button>
+        <button type="button" class="pw-eye" data-target="ks-modal-password" aria-label="Show password" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#888;padding:4px;font-size:14px;line-height:1;">Show</button>
       </div>
       <label style="font-size:11px;color:#666;display:block;margin-bottom:6px;">Transaction PIN (if set on your account)</label>
       <div style="position:relative;margin-bottom:16px;">
         <input id="ks-modal-pin" type="password" autocomplete="one-time-code" placeholder="Optional unless required" style="width:100%;background:#0d0d0d;border:1px solid #222;border-radius:8px;padding:10px 40px 10px 14px;color:#e8e0cc;font-size:14px;outline:none;box-sizing:border-box;"/>
-        <button type="button" class="pw-eye" data-target="ks-modal-pin" aria-label="Show PIN" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#888;padding:4px;font-size:14px;line-height:1;">👁</button>
+        <button type="button" class="pw-eye" data-target="ks-modal-pin" aria-label="Show PIN" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#888;padding:4px;font-size:14px;line-height:1;">Show</button>
       </div>
       <button id="ks-modal-submit" onclick="submitKeystoreModal()" style="width:100%;padding:12px;background:linear-gradient(135deg,#D4AF37,#A67C00);color:#000;font-weight:700;font-size:14px;border:none;border-radius:8px;cursor:pointer;margin-bottom:10px;">Create keystore</button>
       <button id="ks-modal-cancel" onclick="cancelKeystoreModal()" style="width:100%;padding:10px;background:#151515;color:#888;border:1px solid #222;border-radius:8px;cursor:pointer;font-size:13px;margin-bottom:10px;">Skip for now</button>
@@ -526,6 +537,7 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
   </div>
 </div>
 
+<script src="boot_guard.js"></script>
 <script src="setup_login.js"></script>
 <script src="dash_status.js"></script>
 <script src="mining_format.js"></script>
@@ -1106,18 +1118,80 @@ async function resyncFromCheckpoint() {
   }
 }
 
+function showFatalError(source, message, stack) {
+  const overlay = document.getElementById('fatal-error-overlay');
+  const textEl = document.getElementById('fatal-error-text');
+  const full = (source ? '[' + source + '] ' : '') + String(message || 'Unknown error')
+    + (stack ? '\n\n' + stack : '');
+  if (textEl) textEl.textContent = full;
+  if (overlay) overlay.style.display = 'flex';
+  try {
+    if (window.node && window.node.reportError) {
+      window.node.reportError({ source: source || 'renderer', message: String(message || ''), stack: stack || '' });
+    }
+  } catch (_) {}
+}
+window.showFatalError = showFatalError;
+
+function wireFatalErrorUi() {
+  const copy = document.getElementById('fatal-error-copy');
+  const dismiss = document.getElementById('fatal-error-dismiss');
+  if (copy && !copy.dataset.wired) {
+    copy.dataset.wired = '1';
+    copy.addEventListener('click', async () => {
+      const text = (document.getElementById('fatal-error-text') || {}).textContent || '';
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(text);
+        } else {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          ta.remove();
+        }
+        copy.textContent = 'Copied';
+        setTimeout(() => { copy.textContent = 'Copy error'; }, 1500);
+      } catch (_) {}
+    });
+  }
+  if (dismiss && !dismiss.dataset.wired) {
+    dismiss.dataset.wired = '1';
+    dismiss.addEventListener('click', () => {
+      const overlay = document.getElementById('fatal-error-overlay');
+      if (overlay) overlay.style.display = 'none';
+    });
+  }
+}
+
 function wirePasswordEyes() {
   document.querySelectorAll('.pw-eye').forEach((btn) => {
     if (btn.dataset.wired) return;
     btn.dataset.wired = '1';
-    btn.addEventListener('click', () => {
+    btn.type = 'button';
+    const toggle = () => {
       const id = btn.getAttribute('data-target');
       const input = document.getElementById(id);
       if (!input) return;
+      const value = input.value;
       const show = input.type === 'password';
       input.type = show ? 'text' : 'password';
-      btn.textContent = show ? '🙈' : '👁';
+      input.value = value;
+      btn.textContent = show ? 'Hide' : 'Show';
       btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+      try { input.focus(); } catch (_) {}
+    };
+    btn.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      toggle();
+    });
+    btn.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter' || ev.key === ' ') {
+        ev.preventDefault();
+        toggle();
+      }
     });
   });
 }
@@ -1141,8 +1215,7 @@ function resetConfig() {
   document.getElementById('cfg-port').value = '8080';
   document.getElementById('cfg-peers').value = '8333';
   document.getElementById('cfg-datadir').value = '';
-  document.getElementById('cfg-bootstrap').value = 'goldminequant.org:8333
-87.255.81.125:8333';
+  document.getElementById('cfg-bootstrap').value = 'goldminequant.org:8333\n87.255.81.125:8333';
   document.getElementById('cfg-validator').value = '';
   document.getElementById('cfg-stake').value = '10000';
   const auto = document.getElementById('cfg-auto-update');
@@ -1625,56 +1698,86 @@ function ensureValidatorTabInit() {
   }
 }
 
-async function setupLogin() {
-  const username = document.getElementById('setup-username').value.trim();
-  const password = document.getElementById('setup-password').value.trim();
+function showLoginError(text) {
   const msg = document.getElementById('setup-msg');
-  if (!username || !password) { msg.style.color='#f87171'; msg.textContent='Enter username and password.'; return; }
-  msg.style.color='#D4AF37'; msg.textContent='Logging in...';
+  const line = String(text || 'Login failed');
+  if (msg) {
+    msg.style.color = '#f87171';
+    msg.textContent = line;
+  } else {
+    showFatalError('Login', line);
+  }
   try {
+    if (window.node && window.node.reportError) {
+      window.node.reportError({ source: 'setupLogin', message: line });
+    }
+  } catch (_) {}
+}
+
+async function setupLogin() {
+  const msg = document.getElementById('setup-msg');
+  try {
+    const userEl = document.getElementById('setup-username');
+    const passEl = document.getElementById('setup-password');
+    const username = userEl ? String(userEl.value || '').trim() : '';
+    const password = passEl ? String(passEl.value || '').trim() : '';
+    if (!username || !password) {
+      showLoginError('Enter username and password.');
+      return;
+    }
+    if (msg) { msg.style.color = '#D4AF37'; msg.textContent = 'Logging in…'; }
     const res = await fetch('https://goldminequant.org/api/auth/login', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({username, password})
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
     });
-    const data = await res.json();
-    if (data.token) {
-      const applied = (window.GoldogramSetupLogin || {}).applySetupLoginSuccess
-        ? window.GoldogramSetupLogin.applySetupLoginSuccess(document, data, username, { keepOverlay: true })
-        : null;
-      setupToken = (applied && applied.token) || data.token;
-      setupAddress = (applied && applied.address) || (data.wallet && data.wallet.gog_address) || '';
-      setupUsername = (applied && applied.username) || username;
-      const sessionApi = window.GoldogramSetupLogin || {};
-      const session = sessionApi.sessionFromLogin
-        ? sessionApi.sessionFromLogin(data, username)
-        : { username: setupUsername, address: setupAddress };
-      if (sessionApi.writeLoginSession) sessionApi.writeLoginSession(localStorage, session);
-      if (sessionApi.renderAccountHeader) sessionApi.renderAccountHeader(document, session);
-      if (setupAddress) {
-        try { localStorage.setItem('gog_address', setupAddress); } catch (_) {}
-      }
-      // Prefer existing keystore; otherwise open in-app password+PIN modal (no window.prompt).
-      let already = null;
-      try {
-        already = await window.node?.keystoreList?.({ datadir: v1Datadir() || undefined });
-      } catch (_) {}
-      if (already && already.addresses && already.addresses.length) {
-        addLog('[Validator] keystore loaded', 'success');
-        finishSetupAfterKeystore();
-        return;
-      }
-      msg.style.color = '#4ade80';
-      msg.textContent = 'Logged in — create keystore';
-      await openKeystoreModal({
-        mode: 'create',
-        password,
-        hint: 'Required for Validators v1 attestation. Enter password and PIN if set.',
-      });
-    } else {
-      msg.style.color='#f87171'; msg.textContent='❌ ' + (data.error || 'Login failed');
+    let data = null;
+    try {
+      data = await res.json();
+    } catch (parseErr) {
+      showLoginError('Login failed (bad response HTTP ' + res.status + ')');
+      return;
     }
-  } catch(e) { msg.style.color='#f87171'; msg.textContent='❌ ' + e.message; }
+    if (!res.ok || !data || !data.token) {
+      showLoginError((data && data.error) || ('Login failed (HTTP ' + res.status + ')'));
+      return;
+    }
+    const applied = (window.GoldogramSetupLogin || {}).applySetupLoginSuccess
+      ? window.GoldogramSetupLogin.applySetupLoginSuccess(document, data, username, { keepOverlay: true })
+      : null;
+    setupToken = (applied && applied.token) || data.token;
+    setupAddress = (applied && applied.address) || (data.wallet && data.wallet.gog_address) || '';
+    setupUsername = (applied && applied.username) || username;
+    const sessionApi = window.GoldogramSetupLogin || {};
+    const session = sessionApi.sessionFromLogin
+      ? sessionApi.sessionFromLogin(data, username)
+      : { username: setupUsername, address: setupAddress };
+    if (sessionApi.writeLoginSession) sessionApi.writeLoginSession(localStorage, session);
+    if (sessionApi.renderAccountHeader) sessionApi.renderAccountHeader(document, session);
+    if (setupAddress) {
+      try { localStorage.setItem('gog_address', setupAddress); } catch (_) {}
+    }
+    let already = null;
+    try {
+      already = await window.node.keystoreList({ datadir: v1Datadir() || undefined });
+    } catch (ksErr) {
+      showLoginError('Keystore check failed: ' + (ksErr.message || ksErr));
+      // Still allow continuing into keystore create.
+    }
+    if (already && already.addresses && already.addresses.length) {
+      addLog('[Validator] keystore loaded', 'success');
+      finishSetupAfterKeystore();
+      return;
+    }
+    if (msg) { msg.style.color = '#4ade80'; msg.textContent = 'Logged in — create keystore'; }
+    await openKeystoreModal({
+      mode: 'create',
+      password,
+      hint: 'Required for Validators v1 attestation. Enter password and PIN if set.',
+    });
+  } catch (e) {
+    showLoginError((e && e.message) ? e.message : String(e));
+  }
 }
 
 function setupSkip() {
@@ -1781,6 +1884,8 @@ window.miner.onStopped((msg) => {
 
 // Auto-fill address from login session; Mine on this node defaults ON (v1.2.24+)
 window.addEventListener('DOMContentLoaded', () => {
+  wireFatalErrorUi();
+  wirePasswordEyes();
   const sessionApi = window.GoldogramSetupLogin || {};
   const savedSession = sessionApi.readLoginSession ? sessionApi.readLoginSession(localStorage) : null;
   if (sessionApi.renderAccountHeader) sessionApi.renderAccountHeader(document, savedSession);

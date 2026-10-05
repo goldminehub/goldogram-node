@@ -1,25 +1,39 @@
 const { contextBridge, ipcRenderer } = require('electron');
+
+function invokeLogged(handler, ...args) {
+  return ipcRenderer.invoke(handler, ...args).catch((err) => {
+    const message = err && err.message ? err.message : String(err);
+    try {
+      ipcRenderer.send('renderer-ipc-reject', { handler, message });
+    } catch (_) {
+      /* ignore */
+    }
+    throw err;
+  });
+}
+
 contextBridge.exposeInMainWorld('node', {
-  start: (opts) => ipcRenderer.invoke('start-node', opts),
-  stop: () => ipcRenderer.invoke('stop-node'),
-  getStatus: () => ipcRenderer.invoke('get-status'),
-  getSysinfo: () => ipcRenderer.invoke('get-sysinfo'),
-  getAppVersion: () => ipcRenderer.invoke('get-app-version'),
-  getDiskStats: (opts) => ipcRenderer.invoke('get-disk-stats', opts || {}),
-  resyncFromCheckpoint: (opts) => ipcRenderer.invoke('resync-from-checkpoint', opts || {}),
+  start: (opts) => invokeLogged('start-node', opts),
+  stop: () => invokeLogged('stop-node'),
+  getStatus: () => invokeLogged('get-status'),
+  getSysinfo: () => invokeLogged('get-sysinfo'),
+  getAppVersion: () => invokeLogged('get-app-version'),
+  getDiskStats: (opts) => invokeLogged('get-disk-stats', opts || {}),
+  resyncFromCheckpoint: (opts) => invokeLogged('resync-from-checkpoint', opts || {}),
   onLog: (cb) => ipcRenderer.on('node-log', (_, msg) => cb(msg)),
   onStopped: (cb) => ipcRenderer.on('node-stopped', (_, msg) => cb(msg)),
-  keystoreList: (opts) => ipcRenderer.invoke('keystore-list', opts),
-  keystoreEnsure: (opts) => ipcRenderer.invoke('keystore-ensure', opts),
-  keystoreUnlock: (opts) => ipcRenderer.invoke('keystore-unlock', opts),
-  keystoreLock: () => ipcRenderer.invoke('keystore-lock'),
-  signValidatorTx: (opts) => ipcRenderer.invoke('sign-validator-tx', opts),
+  keystoreList: (opts) => invokeLogged('keystore-list', opts),
+  keystoreEnsure: (opts) => invokeLogged('keystore-ensure', opts),
+  keystoreUnlock: (opts) => invokeLogged('keystore-unlock', opts),
+  keystoreLock: () => invokeLogged('keystore-lock'),
+  signValidatorTx: (opts) => invokeLogged('sign-validator-tx', opts),
+  reportError: (payload) => ipcRenderer.send('renderer-error', payload || {}),
 });
 contextBridge.exposeInMainWorld('updater', {
-  check: () => ipcRenderer.invoke('check-update'),
-  install: () => ipcRenderer.invoke('install-update'),
-  getStatus: () => ipcRenderer.invoke('get-update-status'),
-  setAutomatic: (automatic) => ipcRenderer.invoke('set-auto-update', { automatic }),
+  check: () => invokeLogged('check-update'),
+  install: () => invokeLogged('install-update'),
+  getStatus: () => invokeLogged('get-update-status'),
+  setAutomatic: (automatic) => invokeLogged('set-auto-update', { automatic }),
   onStatus: (cb) => ipcRenderer.on('update-status', (_, msg) => cb(msg)),
   onAvailable: (cb) => ipcRenderer.on('update-available', (_, msg) => cb(msg)),
   onDownloaded: (cb) => ipcRenderer.on('update-downloaded', (_, msg) => cb(msg)),
@@ -28,8 +42,8 @@ contextBridge.exposeInMainWorld('updater', {
 });
 
 contextBridge.exposeInMainWorld('miner', {
-  start: (opts) => ipcRenderer.invoke('start-miner', opts),
-  stop: () => ipcRenderer.invoke('stop-miner'),
+  start: (opts) => invokeLogged('start-miner', opts),
+  stop: () => invokeLogged('stop-miner'),
   onLog: (cb) => ipcRenderer.on('miner-log', (_, msg) => cb(msg)),
   onStopped: (cb) => ipcRenderer.on('miner-stopped', (_, msg) => cb(msg)),
 });

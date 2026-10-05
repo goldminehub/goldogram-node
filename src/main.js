@@ -29,6 +29,7 @@ const {
 } = require('./process_kill');
 const { createAutoUpdateController } = require('./auto_update');
 const { collectDiskStats, wipeBlocksDir, defaultDatadir } = require('./disk_stats');
+const { appendMainLog } = require('./main_log');
 
 let mainWindow;
 let nodeProcess = null;
@@ -58,7 +59,7 @@ function getBinaryPath(name) {
 
 function dashLog(line) {
   const payload = { type: 'stdout', line: String(line) };
-  console.log(line);
+  appendMainLog(line);
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('node-log', payload);
   } else {
@@ -264,6 +265,12 @@ function createWindow() {
   });
   mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
   mainWindow.webContents.once('did-finish-load', flushDashLogs);
+  mainWindow.webContents.on('console-message', (_e, level, message, line, sourceId) => {
+    appendMainLog(`[Renderer console L${level}] ${message} (${sourceId}:${line})`);
+  });
+  mainWindow.webContents.on('did-fail-load', (_e, code, desc, url) => {
+    appendMainLog(`[Renderer] did-fail-load ${code} ${desc} ${url}`);
+  });
 }
 
 app.whenReady().then(async () => {
@@ -649,4 +656,13 @@ ipcMain.handle('get-sysinfo', () => {
     freeMem: os.freemem(),
     appVersion: app.getVersion(),
   };
+});
+
+ipcMain.on('renderer-ipc-reject', (_event, payload = {}) => {
+  appendMainLog(`[IPC reject] ${payload.handler || '?'}: ${payload.message || 'unknown'}`);
+});
+
+ipcMain.on('renderer-error', (_event, payload = {}) => {
+  appendMainLog(`[Renderer error] ${payload.source || 'unknown'}: ${payload.message || ''}`);
+  if (payload.stack) appendMainLog(payload.stack);
 });

@@ -161,7 +161,7 @@ function renderDashPanel(el, model) {
       (today.perBlockText ? ' (' + esc(today.perBlockText) + ' GoGX/block)' : '') + '</div>';
 }
 
-var api = {
+var dashStatusApi = {
   HASH_CAP: HASH_CAP,
   pushHashSample: pushHashSample,
   headline: headline,
@@ -172,5 +172,5 @@ var api = {
   tickerRows: tickerRows,
   renderDashPanel: renderDashPanel,
 };
-if (typeof module === 'object' && module.exports) module.exports = api;
-if (typeof window !== 'undefined') window.DashStatus = api;
+if (typeof module === 'object' && module.exports) module.exports = dashStatusApi;
+if (typeof window !== 'undefined') window.DashStatus = dashStatusApi;

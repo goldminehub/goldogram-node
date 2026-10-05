@@ -1,15 +1,17 @@
 {
   "name": "goldogram-node",
-  "version": "1.2.41",
+  "version": "1.2.42",
   "description": "Goldogram Full Node",
   "author": "Goldogram <support@goldminequant.org>",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
-    "test": "node --test test/node_args.test.js test/process_kill.test.js test/mining_format.test.js test/setup_login.test.js test/keystore_sign.test.js test/dash_status.test.js test/auto_update.test.js test/disk_stats.test.js",
+    "test": "node --test test/node_args.test.js test/process_kill.test.js test/mining_format.test.js test/setup_login.test.js test/keystore_sign.test.js test/dash_status.test.js test/auto_update.test.js test/disk_stats.test.js test/renderer_syntax.test.js",
     "build:win": "electron-builder --win --x64",
     "build:mac": "electron-builder --mac --x64",
-    "build:linux": "electron-builder --linux --x64"
+    "build:linux": "electron-builder --linux --x64",
+    "test:login-smoke": "xvfb-run -a electron scripts/login_smoke.js",
+    "test:all": "npm test && npm run test:login-smoke"
   },
   "build": {
     "appId": "org.goldminequant.node",
