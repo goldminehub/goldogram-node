@@ -5,6 +5,8 @@ contextBridge.exposeInMainWorld('node', {
   getStatus: () => ipcRenderer.invoke('get-status'),
   getSysinfo: () => ipcRenderer.invoke('get-sysinfo'),
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
+  getDiskStats: (opts) => ipcRenderer.invoke('get-disk-stats', opts || {}),
+  resyncFromCheckpoint: (opts) => ipcRenderer.invoke('resync-from-checkpoint', opts || {}),
   onLog: (cb) => ipcRenderer.on('node-log', (_, msg) => cb(msg)),
   onStopped: (cb) => ipcRenderer.on('node-stopped', (_, msg) => cb(msg)),
   keystoreList: (opts) => ipcRenderer.invoke('keystore-list', opts),
@@ -16,6 +18,9 @@ contextBridge.exposeInMainWorld('node', {
 contextBridge.exposeInMainWorld('updater', {
   check: () => ipcRenderer.invoke('check-update'),
   install: () => ipcRenderer.invoke('install-update'),
+  getStatus: () => ipcRenderer.invoke('get-update-status'),
+  setAutomatic: (automatic) => ipcRenderer.invoke('set-auto-update', { automatic }),
+  onStatus: (cb) => ipcRenderer.on('update-status', (_, msg) => cb(msg)),
   onAvailable: (cb) => ipcRenderer.on('update-available', (_, msg) => cb(msg)),
   onDownloaded: (cb) => ipcRenderer.on('update-downloaded', (_, msg) => cb(msg)),
   onProgress: (cb) => ipcRenderer.on('update-progress', (_, msg) => cb(msg)),

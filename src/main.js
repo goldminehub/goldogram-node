@@ -27,6 +27,8 @@ const {
   waitPidsGone,
   sleep,
 } = require('./process_kill');
+const { createAutoUpdateController } = require('./auto_update');
+const { collectDiskStats, wipeBlocksDir, defaultDatadir } = require('./disk_stats');
 
 let mainWindow;
 let nodeProcess = null;
@@ -36,6 +38,8 @@ const pendingDashLogs = [];
 let unlockedKeystore = null;
 /** Last successful start-node options (used to restart after Unlock). */
 let lastNodeStartOpts = null;
+/** @type {ReturnType<typeof createAutoUpdateController> | null} */
+let updateController = null;
 
 // Multiple seeds: DNS name first (survives IP changes), raw IP as fallback.
 // The node also remembers good peers in peers.dat and retries them at startup,
@@ -180,6 +184,62 @@ async function stopTrackedNode() {
   await sleep(LOCK_GRACE_MS);
 }
 
+/** Soft-stop for auto-update: prefer graceful exit so the current mine attempt can finish. */
+async function gracefulStopTrackedNode(deadlineMs) {
+  const child = nodeProcess;
+  const miner = minerProcess;
+  const deadline = Number(deadlineMs) || Date.now() + 60000;
+  if (child && child.pid) {
+    dashLog('[Update] stopping core cleanly before install…');
+    try {
+      if (process.platform === 'win32') {
+        spawnSync('taskkill', ['/PID', String(child.pid), '/T'], { windowsHide: true });
+      } else {
+        try { process.kill(child.pid, 'SIGTERM'); } catch (_) { /* gone */ }
+      }
+    } catch (_) { /* ignore */ }
+    while (Date.now() < deadline && isPidAlive(child.pid)) {
+      await sleep(500);
+    }
+    if (isPidAlive(child.pid)) {
+      dashLog('[Update] core still alive — force kill');
+      await killChild(child);
+    } else {
+      await waitForExit(child);
+    }
+  }
+  nodeProcess = null;
+  if (miner && miner.pid) {
+    minerProcess = null;
+    await killChild(miner);
+  }
+  await sleep(LOCK_GRACE_MS);
+}
+
+async function waitForQuietMineWindow(deadlineMs) {
+  const deadline = Number(deadlineMs) || Date.now() + 90000;
+  while (Date.now() < deadline) {
+    if (!nodeProcess || !nodeProcess.pid) return;
+    try {
+      const res = await fetch('http://localhost:8080/api/status');
+      const data = await res.json();
+      const mining = data && data.mining ? data.mining : {};
+      const state = String(mining.state || '');
+      // Finish the current attempt: wait until not actively hashing a template.
+      if (state !== 'mining' || !mining.active) return;
+    } catch (_) {
+      return;
+    }
+    await sleep(1000);
+  }
+}
+
+async function prepareForSilentInstall(deadlineMs) {
+  await waitForQuietMineWindow(deadlineMs);
+  await gracefulStopTrackedNode(deadlineMs);
+  dashLog('[Update] core stopped — installing update');
+}
+
 function emitNodeStopped(code, error) {
   mainWindow?.webContents.send('node-stopped', { code, error: error || null });
   if (error) {
@@ -209,10 +269,19 @@ function createWindow() {
 app.whenReady().then(async () => {
   await killGoldogramOrphans();
   createWindow();
-  // Check for updates after 3 seconds
-  setTimeout(() => {
-    autoUpdater.checkForUpdatesAndNotify();
-  }, 3000);
+  updateController = createAutoUpdateController({
+    autoUpdater,
+    userData: () => app.getPath('userData'),
+    log: (line) => dashLog(line),
+    send: (channel, payload) => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send(channel, payload);
+      }
+    },
+    prepareForInstall: prepareForSilentInstall,
+    getVersion: () => app.getVersion(),
+  });
+  updateController.start();
 });
 
 // macOS: re-create the window when the dock icon is clicked and no window is open.
@@ -220,23 +289,8 @@ app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });
 
-autoUpdater.on('update-available', (info) => {
-  mainWindow?.webContents.send('update-available', { version: info.version });
-});
-
-autoUpdater.on('update-downloaded', (info) => {
-  mainWindow?.webContents.send('update-downloaded', { version: info.version });
-});
-
-autoUpdater.on('download-progress', (progress) => {
-  mainWindow?.webContents.send('update-progress', { percent: progress.percent });
-});
-
-autoUpdater.on('error', (err) => {
-  mainWindow?.webContents.send('update-error', { message: err.message });
-});
-
 app.on('window-all-closed', () => {
+  if (updateController) updateController.stop();
   stopTrackedNode();
   if (process.platform !== 'darwin') app.quit();
 });
@@ -541,14 +595,49 @@ ipcMain.handle('sign-validator-tx', async (_event, opts = {}) => {
   });
 });
 
-ipcMain.handle('check-update', () => {
-  autoUpdater.checkForUpdates();
-  return { ok: true };
+ipcMain.handle('check-update', async () => {
+  if (!updateController) return { ok: false, error: 'updater not ready' };
+  return updateController.checkNow('manual');
 });
 
 ipcMain.handle('install-update', () => {
-  autoUpdater.quitAndInstall();
-  return { ok: true };
+  // Kept for API compatibility; silent path uses quitAndInstall(true, true).
+  try {
+    autoUpdater.quitAndInstall(true, true);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message || String(e) };
+  }
+});
+
+ipcMain.handle('get-update-status', () => {
+  return updateController ? updateController.getStatus() : { automatic: true };
+});
+
+ipcMain.handle('set-auto-update', (_event, { automatic } = {}) => {
+  if (!updateController) return { ok: false };
+  updateController.setAutomatic(!!automatic);
+  return { ok: true, automatic: updateController.isAutomatic() };
+});
+
+ipcMain.handle('get-disk-stats', (_event, { datadir } = {}) => {
+  return { ok: true, ...collectDiskStats(datadir) };
+});
+
+ipcMain.handle('resync-from-checkpoint', async (_event, { datadir } = {}) => {
+  dashLog('[Resync] stopping node and wiping local blocks (checkpoint resync)…');
+  await stopTrackedNode();
+  const wipe = wipeBlocksDir(datadir || (lastNodeStartOpts && lastNodeStartOpts.datadir));
+  dashLog(`[Resync] ${wipe.wiped ? 'wiped' : 'no'} blocks at ${wipe.path}`);
+  const opts = lastNodeStartOpts
+    ? { ...lastNodeStartOpts, datadir: datadir || lastNodeStartOpts.datadir }
+    : {
+        datadir: defaultDatadir(datadir),
+        seeds: DEFAULT_SEEDS,
+        mine: false,
+      };
+  const started = await startFullNode(opts);
+  return { ok: !!started?.ok, wipe, started };
 });
 
 ipcMain.handle('get-sysinfo', () => {
@@ -558,5 +647,6 @@ ipcMain.handle('get-sysinfo', () => {
     cpus: os.cpus().length,
     totalMem: os.totalmem(),
     freeMem: os.freemem(),
+    appVersion: app.getVersion(),
   };
 });

@@ -113,7 +113,10 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
     </div>
     <div id="setup-step-login">
       <input id="setup-username" placeholder="Username" style="width:100%;background:#0d0d0d;border:1px solid #222;border-radius:8px;padding:10px 14px;color:#e8e0cc;font-size:14px;outline:none;box-sizing:border-box;margin-bottom:10px;"/>
-      <input id="setup-password" type="password" placeholder="Password" style="width:100%;background:#0d0d0d;border:1px solid #222;border-radius:8px;padding:10px 14px;color:#e8e0cc;font-size:14px;outline:none;box-sizing:border-box;margin-bottom:16px;"/>
+      <div style="position:relative;margin-bottom:16px;">
+        <input id="setup-password" type="password" placeholder="Password" style="width:100%;background:#0d0d0d;border:1px solid #222;border-radius:8px;padding:10px 40px 10px 14px;color:#e8e0cc;font-size:14px;outline:none;box-sizing:border-box;"/>
+        <button type="button" class="pw-eye" data-target="setup-password" aria-label="Show password" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#888;padding:4px;font-size:14px;line-height:1;">👁</button>
+      </div>
       <button onclick="setupLogin()" style="width:100%;padding:12px;background:linear-gradient(135deg,#D4AF37,#A67C00);color:#000;font-weight:700;font-size:14px;border:none;border-radius:8px;cursor:pointer;margin-bottom:10px;">Login to Goldogram</button>
       <div id="setup-msg" style="font-size:12px;text-align:center;min-height:20px;"></div>
     </div>
@@ -121,9 +124,15 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
       <h2 style="font-size:16px;font-weight:700;color:#D4AF37;margin:0 0 8px;text-align:center;">Create validator keystore</h2>
       <p style="font-size:12px;color:#666;line-height:1.5;margin:0 0 16px;text-align:center;">Exports your Dilithium key and wraps it with Argon2id into keystore.json. Electron has no window.prompt — enter password and PIN here.</p>
       <label style="font-size:11px;color:#666;display:block;margin-bottom:6px;">Login password</label>
-      <input id="ks-modal-password" type="password" autocomplete="current-password" style="width:100%;background:#0d0d0d;border:1px solid #222;border-radius:8px;padding:10px 14px;color:#e8e0cc;font-size:14px;outline:none;box-sizing:border-box;margin-bottom:10px;"/>
+      <div style="position:relative;margin-bottom:10px;">
+        <input id="ks-modal-password" type="password" autocomplete="current-password" style="width:100%;background:#0d0d0d;border:1px solid #222;border-radius:8px;padding:10px 40px 10px 14px;color:#e8e0cc;font-size:14px;outline:none;box-sizing:border-box;"/>
+        <button type="button" class="pw-eye" data-target="ks-modal-password" aria-label="Show password" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#888;padding:4px;font-size:14px;line-height:1;">👁</button>
+      </div>
       <label style="font-size:11px;color:#666;display:block;margin-bottom:6px;">Transaction PIN (if set on your account)</label>
-      <input id="ks-modal-pin" type="password" autocomplete="one-time-code" placeholder="Optional unless required" style="width:100%;background:#0d0d0d;border:1px solid #222;border-radius:8px;padding:10px 14px;color:#e8e0cc;font-size:14px;outline:none;box-sizing:border-box;margin-bottom:16px;"/>
+      <div style="position:relative;margin-bottom:16px;">
+        <input id="ks-modal-pin" type="password" autocomplete="one-time-code" placeholder="Optional unless required" style="width:100%;background:#0d0d0d;border:1px solid #222;border-radius:8px;padding:10px 40px 10px 14px;color:#e8e0cc;font-size:14px;outline:none;box-sizing:border-box;"/>
+        <button type="button" class="pw-eye" data-target="ks-modal-pin" aria-label="Show PIN" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#888;padding:4px;font-size:14px;line-height:1;">👁</button>
+      </div>
       <button id="ks-modal-submit" onclick="submitKeystoreModal()" style="width:100%;padding:12px;background:linear-gradient(135deg,#D4AF37,#A67C00);color:#000;font-weight:700;font-size:14px;border:none;border-radius:8px;cursor:pointer;margin-bottom:10px;">Create keystore</button>
       <button id="ks-modal-cancel" onclick="cancelKeystoreModal()" style="width:100%;padding:10px;background:#151515;color:#888;border:1px solid #222;border-radius:8px;cursor:pointer;font-size:13px;margin-bottom:10px;">Skip for now</button>
       <div id="ks-modal-msg" style="font-size:12px;text-align:center;min-height:20px;color:#888;"></div>
@@ -142,6 +151,7 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
     Goldogram Full Node
   </div>
   <div class="titlebar-status">
+    <span id="chain-sync-text" style="font-size:12px;color:#888;margin-right:14px;">Chain: —</span>
     <div class="status-dot" id="status-dot"></div>
     <span id="status-text">Stopped</span>
   </div>
@@ -185,18 +195,11 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
 
     <!-- Dashboard Panel -->
     <!-- Update Banner -->
-    <div id="update-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:999;background:#1a1400;border-bottom:1px solid #D4AF37;padding:10px 20px;display:none;align-items:center;justify-content:space-between;">
-      <div>
-        <span style="color:#D4AF37;font-weight:600;font-size:13px;">🆕 Update available: </span>
-        <span id="update-version" style="color:#fff;font-size:13px;">v0.0.0</span>
-        <span id="update-progress-text" style="color:#666;font-size:12px;margin-left:8px;"></span>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <div id="update-progress-bar-wrap" style="display:none;width:120px;height:4px;background:#333;border-radius:2px;">
-          <div id="update-progress-bar" style="height:100%;background:#D4AF37;border-radius:2px;width:0%;transition:width 0.3s;"></div>
-        </div>
-        <button id="btn-install-update" onclick="installUpdate()" style="display:none;padding:6px 14px;background:#D4AF37;color:#000;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">Restart & Install</button>
-        <button onclick="document.getElementById('update-banner').style.display='none'" style="padding:4px 10px;background:transparent;color:#666;border:1px solid #333;border-radius:6px;font-size:12px;cursor:pointer;">Later</button>
+    <div id="update-banner" style="display:none;padding:8px 16px;background:#1a1400;border-bottom:1px solid #2a2000;font-size:12px;color:#D4AF37;">
+      <span id="update-version"></span>
+      <span id="update-progress-text" style="color:#888;margin-left:8px;"></span>
+      <div id="update-progress-bar-wrap" style="display:none;margin-top:6px;width:180px;height:3px;background:#333;border-radius:2px;">
+        <div id="update-progress-bar" style="height:100%;background:#D4AF37;border-radius:2px;width:0%;transition:width 0.3s;"></div>
       </div>
     </div>
 
@@ -212,7 +215,7 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
         </div>
       </div>
       <div id="dash-validator-hint" style="display:none;margin:12px 16px 0;padding:10px 14px;background:#0a1a00;border:1px solid #1a3a00;border-radius:8px;font-size:13px;color:#4ade80;line-height:1.4;"></div>
-      <div class="stats-grid">
+      <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);">
         <div class="stat-card">
           <div class="stat-label">Block Height</div>
           <div class="stat-value" id="stat-height">—</div>
@@ -224,16 +227,28 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
           <div class="stat-sub">Connected nodes</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">Difficulty</div>
+          <div class="stat-label">Network difficulty</div>
           <div class="stat-value" id="stat-diff">—</div>
-          <div class="stat-sub">GoldPoW / Blake3</div>
+          <div class="stat-sub">Tip bits (GoldPoW)</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">Network Hashrate</div>
           <div class="stat-value" id="stat-hash">—</div>
           <div class="stat-sub" id="stat-hash-sub">MH/s</div>
         </div>
+        <div class="stat-card">
+          <div class="stat-label">DB size</div>
+          <div class="stat-value" id="stat-db">—</div>
+          <div class="stat-sub">sled blocks dir</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Free disk</div>
+          <div class="stat-value" id="stat-disk">—</div>
+          <div class="stat-sub">on data volume</div>
+        </div>
       </div>
+      <div id="auto-update-line" style="padding:0 16px 8px;font-size:12px;color:#666;">Auto-update: —</div>
+      <div id="resync-progress" style="display:none;padding:0 16px 8px;font-size:12px;color:#D4AF37;"></div>
       <div class="dash-panel" id="dash-status"></div>
       <div class="controls">
         <button class="btn btn-primary" id="btn-start" onclick="startNode()">Start Node</button>
@@ -297,12 +312,12 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
           <div class="info-row"><span class="info-key">CPU Cores</span><span class="info-val" id="sys-cpus">—</span></div>
           <div class="info-row"><span class="info-key">Total RAM</span><span class="info-val" id="sys-ram">—</span></div>
           <div class="info-row"><span class="info-key">Free RAM</span><span class="info-val" id="sys-free">—</span></div>
-          <div class="info-row"><span class="info-key">Node Version</span><span class="info-val">1.0.0</span></div>
+          <div class="info-row"><span class="info-key">Node Version</span><span class="info-val" id="sys-app-version">—</span></div>
         </div>
         <div class="info-card">
           <div class="info-card-title">Network</div>
           <div class="info-row"><span class="info-key">API Port</span><span class="info-val">8080</span></div>
-          <div class="info-row"><span class="info-key">P2P Port</span><span class="info-val">30303</span></div>
+          <div class="info-row"><span class="info-key">P2P Port</span><span class="info-val">8333</span></div>
           <div class="info-row"><span class="info-key">Chain ID</span><span class="info-val">GOGX-1</span></div>
           <div class="info-row"><span class="info-key">Node Status</span><span id="node-status-badge"><span class="badge badge-red">Stopped</span></span></div>
         </div>
@@ -331,13 +346,23 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">API Port</label>
-            <input class="form-input" id="cfg-port" value="8080" type="number"/>
+            <label class="form-label">Local status API</label>
+            <input class="form-input" id="cfg-port" value="8080" type="number" disabled title="Fixed loopback status port"/>
           </div>
           <div class="form-group">
-            <label class="form-label">Max Peers</label>
-            <input class="form-input" id="cfg-peers" value="25" type="number"/>
+            <label class="form-label">P2P listen</label>
+            <input class="form-input" id="cfg-peers" value="8333" disabled title="Fixed P2P port"/>
           </div>
+        </div>
+        <div class="form-group" style="margin-top:8px;">
+          <label class="form-label">Automatic updates</label>
+          <div style="display:flex;align-items:center;gap:12px;margin-top:6px;">
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#ccc;cursor:pointer;">
+              <input type="checkbox" id="cfg-auto-update" checked style="accent-color:#D4AF37;"/> Enabled (default ON)
+            </label>
+            <button type="button" class="btn btn-secondary" onclick="checkUpdate()" style="padding:6px 12px;font-size:12px;">Check now</button>
+          </div>
+          <div id="cfg-update-status" style="font-size:12px;color:#666;margin-top:6px;"></div>
         </div>
         <div class="form-group">
           <label class="form-label">Bootstrap Peers (one per line)</label>
@@ -350,14 +375,15 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
             <input class="form-input" id="cfg-validator" placeholder="Go... (leave empty to run as regular full node)" value=""/>
           </div>
           <div class="form-group">
-            <label class="form-label">Validator Stake (GoG)</label>
-            <input class="form-input" id="cfg-stake" value="10000" type="number"/>
+            <label class="form-label">Validator Stake (informational)</label>
+            <input class="form-input" id="cfg-stake" value="10000" type="number" disabled title="Stake is managed on-chain via the Validator panel"/>
           </div>
         </div>
       </div>
-      <div class="controls">
+      <div class="controls" style="flex-wrap:wrap;gap:8px;">
         <button class="btn btn-primary" onclick="saveConfig()">Save Config</button>
         <button class="btn btn-secondary" onclick="resetConfig()">Reset Defaults</button>
+        <button class="btn btn-secondary" type="button" onclick="resyncFromCheckpoint()" id="btn-resync">Resync from checkpoint</button>
       </div>
     </div>
 
@@ -626,9 +652,15 @@ function setRunning(val) {
     document.getElementById('stat-peers').textContent = '—';
     document.getElementById('stat-diff').textContent = '—';
     document.getElementById('stat-hash').textContent = '—';
+    const dbEl = document.getElementById('stat-db');
+    const diskEl = document.getElementById('stat-disk');
+    if (dbEl) dbEl.textContent = '—';
+    if (diskEl) diskEl.textContent = '—';
     document.getElementById('stat-height-sub').textContent = 'Genesis: 0';
     document.getElementById('sync-state-text').innerHTML = '';
     document.getElementById('last-block-text').textContent = '';
+    const chainEl = document.getElementById('chain-sync-text');
+    if (chainEl) { chainEl.textContent = 'Chain: —'; chainEl.style.color = '#888'; }
     setMiningStopped();
   }
 }
@@ -797,6 +829,8 @@ async function fetchStatus() {
   document.getElementById('stat-peers').textContent = d.peers ?? d.connected_peers ?? d.peer_count ?? '0';
   const diff = d.difficulty;
   document.getElementById('stat-diff').textContent = (diff == null || diff === 0) ? 'n/a' : diff;
+  paintChainSync(d);
+  refreshDiskStats();
   paintNetworkHash(d);
   paintDashVisual(childRunning, d);
 
@@ -940,18 +974,181 @@ function renderPeers(list) {
   ).join('');
 }
 
+
+function paintChainSync(d) {
+  const el = document.getElementById('chain-sync-text');
+  if (!el || !d) return;
+  const h = Number(d.height) || 0;
+  const seed = Number(d.network_height) || 0;
+  const mining = d.mining || {};
+  const isolated = !!(mining.isolated || mining.state === 'isolated');
+  const synced = d.sync_state === 'synced' && !isolated && seed > 0 && h === seed;
+  if (!seed) {
+    el.textContent = 'Chain: connecting…';
+    el.style.color = '#888';
+    return;
+  }
+  if (synced) {
+    el.textContent = 'Chain: in sync with seed ✓';
+    el.style.color = '#4ade80';
+  } else if (isolated || (seed > 0 && h > seed + 20)) {
+    el.textContent = 'Chain: diverged ✗ (height ' + h.toLocaleString() + ' vs seed ' + seed.toLocaleString() + ')';
+    el.style.color = '#f87171';
+  } else if (d.sync_state === 'syncing' || h < seed) {
+    el.textContent = 'Chain: syncing (height ' + h.toLocaleString() + ' vs seed ' + seed.toLocaleString() + ')';
+    el.style.color = '#D4AF37';
+  } else {
+    el.textContent = 'Chain: in sync with seed ✓';
+    el.style.color = '#4ade80';
+  }
+  const rp = document.getElementById('resync-progress');
+  if (rp && rp.dataset.active === '1') {
+    if (d.sync_state === 'synced' && !isolated) {
+      rp.dataset.active = '0';
+      rp.style.display = 'none';
+      rp.textContent = '';
+    } else {
+      rp.style.display = 'block';
+      rp.textContent = 'Resync progress: height ' + h.toLocaleString() + ' / seed ' + seed.toLocaleString() +
+        (d.sync_state ? ' (' + d.sync_state + ')' : '');
+    }
+  }
+}
+
+let _diskStatsAt = 0;
+async function refreshDiskStats(force) {
+  const now = Date.now();
+  if (!force && now - _diskStatsAt < 15000) return;
+  _diskStatsAt = now;
+  try {
+    const datadir = (document.getElementById('cfg-datadir') || {}).value || '';
+    const s = await window.node?.getDiskStats({ datadir });
+    if (!s || !s.ok) return;
+    const db = document.getElementById('stat-db');
+    const disk = document.getElementById('stat-disk');
+    if (db) db.textContent = s.dbText || '—';
+    if (disk) disk.textContent = s.freeText || '—';
+  } catch (_) {}
+}
+
+function formatCheckedAgo(ts) {
+  const n = Number(ts) || 0;
+  if (!n) return 'never';
+  const sec = Math.max(0, Math.floor(Date.now() / 1000) - n);
+  if (sec < 60) return sec + ' s ago';
+  if (sec < 3600) return Math.floor(sec / 60) + ' min ago';
+  if (sec < 86400) return Math.floor(sec / 3600) + ' h ago';
+  return Math.floor(sec / 86400) + ' d ago';
+}
+
+function paintAutoUpdateLine(st) {
+  const line = document.getElementById('auto-update-line');
+  const cfg = document.getElementById('cfg-update-status');
+  if (!st) return;
+  let text = '';
+  if (st.downloading) {
+    text = 'Downloading update ' + (st.availableVersion || '') + ' (' + Math.round(st.percent || 0) + ' %)…';
+  } else if (st.installing) {
+    text = 'Installing update ' + (st.downloadedVersion || st.availableVersion || '') + '…';
+  } else {
+    const ver = st.currentVersion || '—';
+    text = 'Auto-update: v' + ver + ' · checked ' + formatCheckedAgo(st.lastCheckedAt);
+    if (st.lastError) text += ' · last error logged';
+  }
+  if (line) line.textContent = text;
+  if (cfg) cfg.textContent = text;
+  const banner = document.getElementById('update-banner');
+  if (banner) {
+    if (st.downloading || st.installing) {
+      banner.style.display = 'block';
+      const ver = document.getElementById('update-version');
+      const prog = document.getElementById('update-progress-text');
+      const bar = document.getElementById('update-progress-bar');
+      const wrap = document.getElementById('update-progress-bar-wrap');
+      if (ver) ver.textContent = st.downloading
+        ? ('Downloading ' + (st.availableVersion || ''))
+        : ('Installing ' + (st.downloadedVersion || ''));
+      if (prog) prog.textContent = st.downloading ? (Math.round(st.percent || 0) + ' %') : '';
+      if (wrap) wrap.style.display = st.downloading ? 'block' : 'none';
+      if (bar) bar.style.width = Math.round(st.percent || 0) + '%';
+    } else {
+      banner.style.display = 'none';
+    }
+  }
+}
+
+async function resyncFromCheckpoint() {
+  if (!confirm('Resync from checkpoint?\n\nThis stops the node, deletes the local sled blocks directory (heights after the trusted checkpoint will be re-downloaded), then restarts and syncs. Keystore and peers are kept.')) {
+    return;
+  }
+  const rp = document.getElementById('resync-progress');
+  if (rp) {
+    rp.dataset.active = '1';
+    rp.style.display = 'block';
+    rp.textContent = 'Resync: wiping local blocks…';
+  }
+  addLog('Resync from checkpoint started…');
+  try {
+    const datadir = (document.getElementById('cfg-datadir') || {}).value || '';
+    const res = await window.node?.resyncFromCheckpoint({ datadir });
+    if (res && res.ok) {
+      setRunning(true);
+      statusInterval = setInterval(fetchStatus, 2000);
+      addLog('Resync: node restarted — syncing from seed', 'success');
+      if (rp) rp.textContent = 'Resync: node restarted, waiting for sync…';
+    } else {
+      addLog('Resync failed: ' + ((res && res.started && res.started.error) || 'unknown'), 'error');
+      if (rp) { rp.dataset.active = '0'; rp.style.display = 'none'; }
+    }
+  } catch (e) {
+    addLog('Resync error: ' + (e.message || e), 'error');
+    if (rp) { rp.dataset.active = '0'; rp.style.display = 'none'; }
+  }
+}
+
+function wirePasswordEyes() {
+  document.querySelectorAll('.pw-eye').forEach((btn) => {
+    if (btn.dataset.wired) return;
+    btn.dataset.wired = '1';
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-target');
+      const input = document.getElementById(id);
+      if (!input) return;
+      const show = input.type === 'password';
+      input.type = show ? 'text' : 'password';
+      btn.textContent = show ? '🙈' : '👁';
+      btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+    });
+  });
+}
+
 function saveConfig() {
+  const auto = document.getElementById('cfg-auto-update');
+  if (auto && window.updater && window.updater.setAutomatic) {
+    window.updater.setAutomatic(!!auto.checked).then(function () { refreshUpdateStatus(); });
+  }
+  try {
+    localStorage.setItem('gog_cfg_url', document.getElementById('cfg-url').value || '');
+    localStorage.setItem('gog_cfg_datadir', document.getElementById('cfg-datadir').value || '');
+    localStorage.setItem('gog_cfg_bootstrap', document.getElementById('cfg-bootstrap').value || '');
+    localStorage.setItem('gog_cfg_validator', document.getElementById('cfg-validator').value || '');
+  } catch (_) {}
   addLog('Configuration saved.', 'success');
 }
 
 function resetConfig() {
   document.getElementById('cfg-url').value = 'https://goldminequant.org';
   document.getElementById('cfg-port').value = '8080';
-  document.getElementById('cfg-peers').value = '25';
+  document.getElementById('cfg-peers').value = '8333';
   document.getElementById('cfg-datadir').value = '';
-  document.getElementById('cfg-bootstrap').value = 'goldminequant.org:8333\n87.255.81.125:8333';
+  document.getElementById('cfg-bootstrap').value = 'goldminequant.org:8333
+87.255.81.125:8333';
   document.getElementById('cfg-validator').value = '';
   document.getElementById('cfg-stake').value = '10000';
+  const auto = document.getElementById('cfg-auto-update');
+  if (auto) auto.checked = true;
+  if (window.updater && window.updater.setAutomatic) window.updater.setAutomatic(true);
+  addLog('Configuration reset to defaults.');
 }
 
 async function loadSysinfo() {
@@ -962,6 +1159,8 @@ async function loadSysinfo() {
   document.getElementById('sys-cpus').textContent = info.cpus;
   document.getElementById('sys-ram').textContent = (info.totalMem / 1e9).toFixed(1) + ' GB';
   document.getElementById('sys-free').textContent = (info.freeMem / 1e9).toFixed(1) + ' GB';
+  const av = document.getElementById('sys-app-version');
+  if (av) av.textContent = info.appVersion || (info.version || '—');
 }
 
 if (window.node) {
@@ -1614,51 +1813,90 @@ window.addEventListener('DOMContentLoaded', () => {
       } catch (_) {}
     });
   }
+  wirePasswordEyes();
+  refreshDiskStats(true);
+  refreshUpdateStatus();
+  const auto = document.getElementById('cfg-auto-update');
+  if (auto) {
+    auto.addEventListener('change', () => {
+      if (window.updater && window.updater.setAutomatic) {
+        window.updater.setAutomatic(!!auto.checked).then(refreshUpdateStatus);
+      }
+    });
+  }
+  try {
+    const u = localStorage.getItem('gog_cfg_url');
+    const d = localStorage.getItem('gog_cfg_datadir');
+    const b = localStorage.getItem('gog_cfg_bootstrap');
+    const v = localStorage.getItem('gog_cfg_validator');
+    if (u) document.getElementById('cfg-url').value = u;
+    if (d != null) document.getElementById('cfg-datadir').value = d;
+    if (b) document.getElementById('cfg-bootstrap').value = b;
+    if (v != null) document.getElementById('cfg-validator').value = v;
+  } catch (_) {}
+  if (typeof loadSysinfo === 'function') loadSysinfo();
+  else if (window.node && window.node.getSysinfo) {
+    window.node.getSysinfo().then(function (info) {
+      if (!info) return;
+      const av = document.getElementById('sys-app-version');
+      if (av) av.textContent = info.appVersion || '—';
+    });
+  }
+  setInterval(function () { refreshUpdateStatus(); }, 60000);
 });
 
 
 // ── AUTO-UPDATE ──────────────────────────────────────────
-function showUpdateBanner(version) {
-  const banner = document.getElementById('update-banner');
-  const ver = document.getElementById('update-version');
-  if (banner) { banner.style.display = 'flex'; }
-  if (ver) ver.textContent = 'v' + version;
+async function refreshUpdateStatus() {
+  try {
+    const st = await window.updater.getStatus();
+    paintAutoUpdateLine(st);
+    const auto = document.getElementById('cfg-auto-update');
+    if (auto && st && typeof st.automatic === 'boolean') auto.checked = st.automatic;
+  } catch (_) {}
 }
 
-async function checkForUpdates() {
-  await window.updater.check();
+async function checkUpdate() {
   addLog('Checking for updates...');
+  const res = await window.updater.check();
+  await refreshUpdateStatus();
+  if (res && res.skipped) addLog('Automatic updates are off — enable in Config, or this was a manual check.');
+  if (res && res.error) addLog('Update check failed: ' + res.error, 'error');
 }
 
+async function checkForUpdates() { return checkUpdate(); }
 async function installUpdate() {
+  // Silent path installs automatically; kept for compatibility.
   await window.updater.install();
 }
 
-window.updater.onAvailable((msg) => {
-  showUpdateBanner(msg.version);
-  addLog('Update available: v' + msg.version);
-});
+if (window.updater) {
+  if (window.updater.onStatus) {
+    window.updater.onStatus((st) => paintAutoUpdateLine(st));
+  }
+  window.updater.onAvailable((msg) => {
+    addLog('Update available: v' + msg.version + ' — downloading');
+    refreshUpdateStatus();
+  });
+  window.updater.onProgress((msg) => {
+    paintAutoUpdateLine({
+      downloading: true,
+      percent: msg.percent,
+      availableVersion: (document.getElementById('update-version') || {}).textContent || '',
+      currentVersion: '',
+      lastCheckedAt: 0,
+    });
+  });
+  window.updater.onDownloaded((msg) => {
+    addLog('Update downloaded: v' + msg.version + ' — installing silently');
+    refreshUpdateStatus();
+  });
+  window.updater.onError((msg) => {
+    addLog('Update error: ' + (msg.message || msg), 'error');
+    refreshUpdateStatus();
+  });
+}
 
-window.updater.onProgress((msg) => {
-  const bar = document.getElementById('update-progress-bar');
-  const wrap = document.getElementById('update-progress-bar-wrap');
-  const text = document.getElementById('update-progress-text');
-  if (bar) bar.style.width = msg.percent.toFixed(0) + '%';
-  if (wrap) wrap.style.display = 'block';
-  if (text) text.textContent = 'Downloading... ' + msg.percent.toFixed(0) + '%';
-});
-
-window.updater.onDownloaded((msg) => {
-  const btn = document.getElementById('btn-install-update');
-  const text = document.getElementById('update-progress-text');
-  if (btn) btn.style.display = 'block';
-  if (text) text.textContent = 'Ready to install';
-  addLog('Update downloaded — click Restart & Install');
-});
-
-window.updater.onError((msg) => {
-  addLog('Update error: ' + msg.message);
-});
 </script>
 </body>
 </html>
