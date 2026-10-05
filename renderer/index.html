@@ -851,7 +851,12 @@ async function fetchStatus() {
   renderRecentMined(mining.recent_blocks);
   const banner = document.getElementById('mining-sync-banner');
   if (banner) {
-    if (running && (mining.state === 'isolated' || mining.isolated)) {
+    const forkAt = Number(mining.fork_resynced_at || 0);
+    const forkRecent = forkAt > 0 && (Date.now() / 1000 - forkAt) < 86400;
+    if (forkRecent) {
+      banner.style.display = 'block';
+      banner.innerHTML = '<div style="color:#D4AF37;font-weight:600;">Resynced to the network chain after a fork</div><div style="color:#888;font-size:12px;margin-top:4px;">Local tip was on a private branch; rolled back to the seed and catching up.</div>';
+    } else if (running && (mining.state === 'isolated' || mining.isolated)) {
       banner.style.display = 'block';
       banner.innerHTML = '<div style="color:#f87171;font-weight:600;">Isolated — not mining</div><div style="color:#888;font-size:12px;margin-top:4px;">No live seed connection, or local tip is ahead of the seed on a different chain. Mining paused; resyncing to the seed.</div>';
     } else if (running && mining.state === 'syncing' && d.network_height) {
