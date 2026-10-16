@@ -24,13 +24,13 @@ test('prefs round-trip', () => {
   assert.ok(fs.existsSync(prefsPath(dir)));
 });
 
-test('createAutoUpdateController wires silent install', async () => {
+test('createAutoUpdateController is notify-only (DESK-01)', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gg-upd-'));
   const events = {};
   const calls = { quit: null, prepare: 0, sent: [] };
   const autoUpdater = {
-    autoDownload: false,
-    autoInstallOnAppQuit: false,
+    autoDownload: true,
+    autoInstallOnAppQuit: true,
     allowDowngrade: true,
     on(ev, fn) { events[ev] = fn; },
     async checkForUpdates() {
@@ -49,8 +49,14 @@ test('createAutoUpdateController wires silent install', async () => {
     getVersion: () => '1.2.40',
   });
   assert.equal(ctl.isAutomatic(), true);
+  assert.equal(autoUpdater.autoDownload, false);
+  assert.equal(autoUpdater.autoInstallOnAppQuit, false);
+  assert.equal(autoUpdater.allowDowngrade, false);
+  events['update-available']({ version: '1.2.41' });
   events['update-downloaded']({ version: '1.2.41' });
-  await new Promise((r) => setTimeout(r, 800));
-  assert.equal(calls.prepare, 1);
-  assert.deepEqual(calls.quit, { silent: true, runAfter: true });
+  await new Promise((r) => setTimeout(r, 50));
+  assert.equal(calls.prepare, 0);
+  assert.equal(calls.quit, null);
+  assert.ok(calls.sent.some(([ch, p]) => ch === 'update-available' && p.notifyOnly === true));
+  assert.ok(calls.sent.some(([ch, p]) => ch === 'update-downloaded' && p.notifyOnly === true));
 });

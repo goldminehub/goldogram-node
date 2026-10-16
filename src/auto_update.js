@@ -1,9 +1,13 @@
 /**
- * Silent auto-update for the Electron desktop node.
+ * Desktop auto-update (Wave 1 DESK-01).
  *
- * Checks GitHub latest.yml via electron-updater. When a build is downloaded,
- * waits for a quiet mining window (or a short timeout), stops the core, then
- * quitAndInstall(isSilent=true, isForceRunAfter=true).
+ * Until code-signed releases are published (Ion keeps signing keys offline),
+ * this is **notify-only**: check + optional download, but never silent install.
+ * UI receives `update-available` / `update-downloaded`; install requires an
+ * explicit future signed-release path.
+ *
+ * Feed: GitHub Releases `goldminehub/goldogram-node` (latest.yml over HTTPS).
+ * electron-updater still verifies sha512 from latest.yml when downloading.
  */
 
 const fs = require('fs');
@@ -50,7 +54,7 @@ function savePrefs(userData, prefs) {
  * @param {() => string} [opts.getVersion]
  */
 function createAutoUpdateController(opts) {
-  const { autoUpdater, userData, log, send, prepareForInstall } = opts;
+  const { autoUpdater, userData, log, send, prepareForInstall: _prepareForInstall } = opts;
   const getVersion = opts.getVersion || (() => {
     try { return require('electron').app.getVersion(); } catch (_) { return '0.0.0'; }
   });
@@ -68,9 +72,10 @@ function createAutoUpdateController(opts) {
   let intervalTimer = null;
   let installScheduled = false;
 
-  autoUpdater.autoDownload = true;
-  autoUpdater.autoInstallOnAppQuit = true;
-  // Keep SHA512 verification from latest.yml (default).
+  // DESK-01: no silent install until Authenticode / Developer ID + notarization.
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = false;
+  // Keep SHA512 verification from latest.yml (default) when download is allowed.
   autoUpdater.allowDowngrade = false;
 
   function snapshot() {
@@ -123,32 +128,18 @@ function createAutoUpdateController(opts) {
   }
 
   async function scheduleInstall(version) {
-    if (installScheduled || state.installing) return;
-    installScheduled = true;
+    // DESK-01: never auto-install unsigned builds. Notify only.
     state.downloadedVersion = version;
+    installScheduled = false;
     emit();
-    log(`[Update] ${version} downloaded — preparing silent install`);
-    const deadline = Date.now() + INSTALL_WAIT_MS;
-    try {
-      await prepareForInstall(deadline);
-    } catch (e) {
-      log(`[Update] prepareForInstall: ${e.message || e}`);
-    }
-    state.installing = true;
-    emit();
-    log(`[Update] installing ${version} (silent, relaunch)`);
-    // isSilent=true, isForceRunAfter=true — no UI, relaunch after install.
-    setTimeout(() => {
-      try {
-        autoUpdater.quitAndInstall(true, true);
-      } catch (e) {
-        state.installing = false;
-        installScheduled = false;
-        state.lastError = e.message || String(e);
-        emit();
-        log(`[Update] quitAndInstall failed: ${state.lastError}`);
-      }
-    }, 500);
+    log(
+      `[Update] ${version} ready — NOTIFY ONLY (no silent install until code-signed releases)`,
+    );
+    send('update-downloaded', {
+      version,
+      notifyOnly: true,
+      reason: 'unsigned_release_policy',
+    });
   }
 
   autoUpdater.on('checking-for-update', () => {
@@ -159,13 +150,19 @@ function createAutoUpdateController(opts) {
   autoUpdater.on('update-available', (info) => {
     state.checking = false;
     state.availableVersion = info.version;
-    state.downloading = true;
+    state.downloading = false;
     state.percent = 0;
     prefs.lastVersion = info.version;
     savePrefs(userData(), prefs);
     emit();
-    send('update-available', { version: info.version });
-    log(`[Update] available: v${info.version} — downloading`);
+    send('update-available', {
+      version: info.version,
+      notifyOnly: true,
+      reason: 'unsigned_release_policy',
+    });
+    log(
+      `[Update] available: v${info.version} — notify only (autoDownload=false until signed)`,
+    );
   });
 
   autoUpdater.on('update-not-available', (info) => {
@@ -191,12 +188,8 @@ function createAutoUpdateController(opts) {
     state.percent = 100;
     state.downloadedVersion = info.version;
     emit();
-    send('update-downloaded', { version: info.version });
-    if (prefs.automatic) {
-      scheduleInstall(info.version);
-    } else {
-      log(`[Update] downloaded v${info.version} — automatic off; waiting`);
-    }
+    // Never quitAndInstall here (DESK-01).
+    scheduleInstall(info.version);
   });
 
   autoUpdater.on('error', (err) => {
