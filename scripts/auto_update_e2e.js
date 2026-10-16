@@ -1,8 +1,8 @@
 'use strict';
 /**
  * Auto-update E2E dry-run against the published GitHub feed.
- * Simulates a 1.2.41 client discovering 1.2.42 and exercising the silent
- * install controller (prepare → quitAndInstall(true, true)).
+ * Simulates a 1.2.42 client discovering 1.2.43 — notify-only (DESK-01).
+ * Never calls quitAndInstall until code-signed releases exist.
  */
 const https = require('https');
 const { createAutoUpdateController } = require('../src/auto_update');
@@ -32,8 +32,8 @@ async function main() {
   );
   const ver = (yml.match(/^version:\s*(.+)$/m) || [])[1];
   log(`[Update] feed latest.yml version=${ver}`);
-  if (ver !== '1.2.42') {
-    throw new Error('expected latest.yml version 1.2.42, got ' + ver);
+  if (ver !== '1.2.43') {
+    throw new Error('expected latest.yml version 1.2.43, got ' + ver);
   }
   if (!/sha512:\s*\S+/.test(yml)) {
     throw new Error('latest.yml missing sha512');
@@ -43,9 +43,10 @@ async function main() {
   const events = {};
   let quit = null;
   let prepare = 0;
+  const sent = [];
   const autoUpdater = {
-    autoDownload: false,
-    autoInstallOnAppQuit: false,
+    autoDownload: true,
+    autoInstallOnAppQuit: true,
     allowDowngrade: true,
     on(ev, fn) { events[ev] = fn; },
     async checkForUpdates() {
@@ -54,7 +55,7 @@ async function main() {
     },
     quitAndInstall(silent, runAfter) {
       quit = { silent, runAfter };
-      log(`[Update] installing ${ver} (silent, relaunch)`);
+      log(`[Update] installing ${ver} (should never happen)`);
     },
   };
 
@@ -67,28 +68,33 @@ async function main() {
     autoUpdater,
     userData: () => dir,
     log,
-    send: () => {},
+    send: (ch, payload) => sent.push([ch, payload]),
     prepareForInstall: async () => {
       prepare += 1;
-      log('[Update] 1.2.42 downloaded — preparing silent install');
-      log('[Update] stopping core cleanly before install…');
-      log('[Update] core stopped — installing update');
+      log('[Update] prepareForInstall — must not run in notify-only');
     },
-    getVersion: () => '1.2.41',
+    getVersion: () => '1.2.42',
   });
+
+  if (autoUpdater.autoDownload !== false || autoUpdater.autoInstallOnAppQuit !== false) {
+    throw new Error('controller must force notify-only flags');
+  }
 
   await ctl.checkNow('startup');
   events['update-available']({ version: ver });
-  log(`[Update] available: v${ver} — downloading`);
-  events['download-progress']({ percent: 64 });
+  log(`[Update] available: v${ver} — notify only (no download/install)`);
   events['update-downloaded']({ version: ver });
-  await new Promise((r) => setTimeout(r, 900));
+  await new Promise((r) => setTimeout(r, 100));
 
-  if (prepare !== 1) throw new Error('prepareForInstall not called');
-  if (!quit || quit.silent !== true || quit.runAfter !== true) {
-    throw new Error('quitAndInstall args wrong: ' + JSON.stringify(quit));
+  if (prepare !== 0) throw new Error('prepareForInstall must not run');
+  if (quit !== null) throw new Error('quitAndInstall must not run: ' + JSON.stringify(quit));
+  if (!sent.some(([ch, p]) => ch === 'update-available' && p.notifyOnly === true)) {
+    throw new Error('missing update-available notifyOnly');
   }
-  log('[Update] E2E OK: 1.2.41 → 1.2.42 silent install path verified against live feed');
+  if (!sent.some(([ch, p]) => ch === 'update-downloaded' && p.notifyOnly === true)) {
+    throw new Error('missing update-downloaded notifyOnly');
+  }
+  log('[Update] E2E OK: 1.2.42 → 1.2.43 notify-only path verified against live feed');
   fs.writeFileSync('/tmp/auto_update_e2e.log', logs.join('\n') + '\n');
 }
 
