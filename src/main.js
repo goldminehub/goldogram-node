@@ -599,6 +599,9 @@ ipcMain.handle('sign-validator-tx', async (_event, opts = {}) => {
     feeMicro: opts.feeMicro != null ? opts.feeMicro : 1000,
     nonce: opts.nonce,
     payload: opts.payload,
+    receiver: opts.receiver,
+    apiBase: opts.apiBase,
+    confirmCanonicalSubstitute: Boolean(opts.confirmCanonicalSubstitute),
   });
 });
 

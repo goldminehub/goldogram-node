@@ -1,7 +1,7 @@
 'use strict';
 /**
  * Auto-update E2E dry-run against the published GitHub feed.
- * Simulates a 1.2.42 client discovering 1.2.43 — notify-only (DESK-01).
+ * Simulates a 1.2.42 client discovering 1.2.44 — notify-only (DESK-01).
  * Never calls quitAndInstall until code-signed releases exist.
  */
 const https = require('https');
@@ -32,8 +32,8 @@ async function main() {
   );
   const ver = (yml.match(/^version:\s*(.+)$/m) || [])[1];
   log(`[Update] feed latest.yml version=${ver}`);
-  if (ver !== '1.2.43') {
-    throw new Error('expected latest.yml version 1.2.43, got ' + ver);
+  if (ver !== '1.2.44') {
+    throw new Error('expected latest.yml version 1.2.44, got ' + ver);
   }
   if (!/sha512:\s*\S+/.test(yml)) {
     throw new Error('latest.yml missing sha512');
@@ -94,7 +94,7 @@ async function main() {
   if (!sent.some(([ch, p]) => ch === 'update-downloaded' && p.notifyOnly === true)) {
     throw new Error('missing update-downloaded notifyOnly');
   }
-  log('[Update] E2E OK: 1.2.42 → 1.2.43 notify-only path verified against live feed');
+  log('[Update] E2E OK: 1.2.42 → 1.2.44 notify-only path verified against live feed');
   fs.writeFileSync('/tmp/auto_update_e2e.log', logs.join('\n') + '\n');
 }
 

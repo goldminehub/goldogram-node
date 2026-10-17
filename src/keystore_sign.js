@@ -13,6 +13,56 @@ function expandHome(p) {
   return p;
 }
 
+/**
+ * Resolve GoGX receive aliases via goldmine API before signing.
+ * Returns { ok, receiver, is_alias, canonical, error }.
+ */
+async function resolveReceiverAddress(apiBase, address) {
+  const addr = String(address || '').trim();
+  if (!addr) return { ok: false, error: 'receiver required' };
+  const base = String(apiBase || 'https://goldminequant.org').replace(/\/$/, '');
+  try {
+    const res = await fetch(`${base}/api/wallet/resolve/${encodeURIComponent(addr)}`);
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { ok: false, error: body.error || `resolve HTTP ${res.status}` };
+    }
+    const canonical = String(body.canonical || addr).trim();
+    const isAlias = Boolean(body.is_alias);
+    return { ok: true, receiver: addr, is_alias: isAlias, canonical };
+  } catch (e) {
+    return { ok: false, error: String(e.message || e) };
+  }
+}
+
+/** Sync wrapper for signValidatorTx (uses deasync-free: blocking via child not needed — call async path from main). */
+function resolveReceiverAddressSync(apiBase, address) {
+  // Prefer undici/sync unavailable — use spawn curl for Electron main sync IPC.
+  const addr = String(address || '').trim();
+  if (!addr) return { ok: false, error: 'receiver required' };
+  const base = String(apiBase || 'https://goldminequant.org').replace(/\/$/, '');
+  const url = `${base}/api/wallet/resolve/${encodeURIComponent(addr)}`;
+  const r = spawnSync('curl', ['-fsS', '--max-time', '15', url], {
+    encoding: 'utf8',
+    windowsHide: true,
+    timeout: 20000,
+  });
+  if (r.status !== 0) {
+    return { ok: false, error: (r.stderr || r.stdout || 'resolve failed').trim() };
+  }
+  try {
+    const body = JSON.parse(String(r.stdout || '').trim());
+    return {
+      ok: true,
+      receiver: addr,
+      is_alias: Boolean(body.is_alias),
+      canonical: String(body.canonical || addr).trim(),
+    };
+  } catch (e) {
+    return { ok: false, error: `bad resolve JSON: ${e.message}` };
+  }
+}
+
 function defaultKeystorePath(datadir) {
   const base = expandHome(datadir || path.join(os.homedir(), '.goldogram'));
   return path.join(base, 'keystore.json');
@@ -107,7 +157,39 @@ function signValidatorTx({
   feeMicro,
   nonce,
   payload,
+  receiver,
+  apiBase,
+  confirmCanonicalSubstitute,
 }) {
+  let resolvedReceiver = receiver || address;
+  // Transfers (and any non-self receiver): refuse legacy aliases unless user confirmed substitute.
+  const wantsExternal =
+    String(txType || '') === 'Transfer' &&
+    String(resolvedReceiver || '').trim() &&
+    String(resolvedReceiver).trim() !== String(address || '').trim();
+  if (wantsExternal || (String(txType || '') === 'Transfer' && receiver)) {
+    const resolved = resolveReceiverAddressSync(apiBase, resolvedReceiver);
+    if (!resolved.ok) {
+      return { ok: false, error: `alias resolve failed: ${resolved.error}`, stderr: '' };
+    }
+    if (resolved.is_alias) {
+      if (confirmCanonicalSubstitute) {
+        resolvedReceiver = resolved.canonical;
+      } else {
+        return {
+          ok: false,
+          error:
+            `receiver is a legacy alias (${resolved.receiver}). ` +
+            `Use the canonical address ${resolved.canonical}, or confirm substitute. ` +
+            `Do not submit alias receivers via /api/submit_tx / P2P.`,
+          is_alias: true,
+          alias: resolved.receiver,
+          canonical: resolved.canonical,
+          stderr: '',
+        };
+      }
+    }
+  }
   const body = {
     keystore_path: expandHome(keystorePath),
     password: password || '',
@@ -116,7 +198,7 @@ function signValidatorTx({
     amount: amountMicro || 0,
     fee: feeMicro || 0,
     nonce: nonce || 1,
-    receiver: address,
+    receiver: resolvedReceiver,
     payload: payload || undefined,
   };
   const r = spawnSync(binaryPath, ['--sign-tx'], {
@@ -159,6 +241,8 @@ module.exports = {
   listKeystoreAddresses,
   expandHome,
   parseCliJsonStdout,
+  resolveReceiverAddress,
+  resolveReceiverAddressSync,
   signValidatorTx,
   wrapKeystoreFile,
 };
