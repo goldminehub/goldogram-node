@@ -27,14 +27,14 @@ app.whenReady().then(async () => {
   for (const h of handlers) {
     ipcMain.handle(h, async () => {
       if (h === 'keystore-list') return { addresses: [], exists: false, path: '' };
-      if (h === 'get-app-version') return '1.2.44-smoke';
+      if (h === 'get-app-version') return '1.2.45-smoke';
       if (h === 'get-sysinfo') {
-        return { platform: process.platform, arch: process.arch, cpus: 1, totalMem: 1, freeMem: 1, appVersion: '1.2.44-smoke' };
+        return { platform: process.platform, arch: process.arch, cpus: 1, totalMem: 1, freeMem: 1, appVersion: '1.2.45-smoke' };
       }
       if (h === 'get-disk-stats') {
         return { ok: true, dbText: '0 B', freeText: '1 GB', dbBytes: 0, freeBytes: 1e9 };
       }
-      if (h === 'get-update-status') return { automatic: true, lastCheckedAt: 0, currentVersion: '1.2.44-smoke' };
+      if (h === 'get-update-status') return { automatic: true, lastCheckedAt: 0, currentVersion: '1.2.45-smoke' };
       return { ok: true };
     });
   }
