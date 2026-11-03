@@ -7,8 +7,8 @@
  *   Blake3(Blake3(payload[0..28]))[0..4].
  *
  * Main-process / Node tests use @noble/hashes blake3 (same digest as blake3-wasm
- * and the Rust blake3 crate). Exposed to the renderer through preload — the
- * renderer never sees a password or seed.
+ * and the Rust blake3 crate). The renderer reaches this via IPC — sandboxed
+ * preload may only require('electron'), so this module must not be loaded there.
  */
 
 const { blake3 } = require('@noble/hashes/blake3');

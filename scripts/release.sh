@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# Build Windows + macOS arm64, run the packaged 20s smoke, publish only if it passes.
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
+
+VERSION="$(node -p "require('./package.json').version")"
+TAG="v${VERSION}"
+WIN="dist/Goldogram-Node-Setup-${VERSION}.exe"
+MAC="dist/Goldogram-Node-${VERSION}-mac-arm64.zip"
+
+echo "[release] version ${VERSION}"
+echo "[release] npm test"
+npm test
+
+echo "[release] electron-builder --win --x64 --mac --arm64 --publish never"
+npx electron-builder --win --x64 --mac --arm64 --publish never
+
+if [[ ! -f "$WIN" ]]; then
+  echo "[release] missing Windows installer $WIN" >&2
+  exit 1
+fi
+if [[ ! -f "$MAC" ]]; then
+  echo "[release] missing macOS zip $MAC" >&2
+  exit 1
+fi
+
+echo "[release] packaged-app smoke (blocks publish on failure)"
+node scripts/packaged_smoke.js
+
+WIN_SHA="$(shasum -a 256 "$WIN" | awk '{print $1}')"
+MAC_SHA="$(shasum -a 256 "$MAC" | awk '{print $1}')"
+echo "[release] Windows SHA256 ${WIN_SHA}"
+echo "[release] macOS arm64 SHA256 ${MAC_SHA}"
+
+NOTES="$(cat <<EOF
+Hotfix: 1.2.46 crashed on Windows launch because sandboxed preload required @noble/hashes (window.miner undefined at renderer/index.html:1973).
+
+1.2.47 keeps preload electron-only, validates GoGX addresses in the main process via IPC, and shows a readable error if the desktop bridge is missing.
+
+| Artifact | SHA256 |
+| --- | --- |
+| Goldogram-Node-Setup-${VERSION}.exe | ${WIN_SHA} |
+| Goldogram-Node-${VERSION}-mac-arm64.zip | ${MAC_SHA} |
+EOF
+)"
+
+if gh release view "$TAG" >/dev/null 2>&1; then
+  echo "[release] $TAG already exists on GitHub — not publishing over it" >&2
+  exit 1
+fi
+
+echo "[release] gh release create ${TAG}"
+gh release create "$TAG" \
+  --title "Goldogram Node ${VERSION}" \
+  --notes "$NOTES" \
+  "$WIN" \
+  "${WIN}.blockmap" \
+  "$MAC" \
+  "${MAC}.blockmap" \
+  dist/latest.yml \
+  dist/latest-mac.yml
+
+echo "[release] published ${TAG}"
+echo "[release] WIN_SHA256=${WIN_SHA}"
+echo "[release] MAC_SHA256=${MAC_SHA}"

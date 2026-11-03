@@ -1791,7 +1791,7 @@ async function setupConnectByAddress() {
       return;
     }
     const api = window.gogAddress || {};
-    const extracted = api.extract ? api.extract(raw) : null;
+    const extracted = api.extract ? await api.extract(raw) : null;
     if (!extracted) {
       showLoginError((api.INVALID) || 'This is not a valid GoGX address.');
       return;
@@ -1969,16 +1969,31 @@ function showMinerSyncBanner(current, total) {
   text.textContent = current.toLocaleString() + ' / ' + total.toLocaleString() + ' blocks (' + pct + '%)';
 }
 
-// Listen for miner logs
-window.miner.onLog((msg) => addMinerLog(msg.line));
-window.miner.onStopped((msg) => {
-  minerRunning = false;
-  document.getElementById('miner-stat-status').textContent = 'Stopped';
-  document.getElementById('miner-stat-status').style.color = '#555';
-  document.getElementById('btn-start-miner').disabled = false;
-  document.getElementById('btn-stop-miner').disabled = true;
-  addMinerLog('⚠️ Miner process exited (code ' + msg.code + ')');
-});
+function requirePreloadBridges() {
+  const missing = [];
+  if (!window.node) missing.push('node');
+  if (!window.miner) missing.push('miner');
+  if (!window.updater) missing.push('updater');
+  if (!window.gogAddress) missing.push('gogAddress');
+  if (!missing.length) return true;
+  const msg = 'Desktop bridge missing: window.' + missing.join(', window.')
+    + '. Preload did not load. Reinstall Goldogram Node.';
+  if (typeof window.showFatalError === 'function') window.showFatalError('preload', msg, '');
+  return false;
+}
+
+const preloadOk = requirePreloadBridges();
+if (preloadOk && window.miner && window.miner.onLog) {
+  window.miner.onLog((msg) => addMinerLog(msg.line));
+  window.miner.onStopped((msg) => {
+    minerRunning = false;
+    document.getElementById('miner-stat-status').textContent = 'Stopped';
+    document.getElementById('miner-stat-status').style.color = '#555';
+    document.getElementById('btn-start-miner').disabled = false;
+    document.getElementById('btn-stop-miner').disabled = true;
+    addMinerLog('⚠️ Miner process exited (code ' + msg.code + ')');
+  });
+}
 
 // Auto-fill address from login session; Mine on this node defaults ON (v1.2.24+)
 window.addEventListener('DOMContentLoaded', () => {

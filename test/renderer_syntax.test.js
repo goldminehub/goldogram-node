@@ -49,6 +49,13 @@ test('login UI has eye toggles type=button and fatal overlay', () => {
   assert.match(html, /id="setup-step-address"/);
   assert.match(html, /id="setup-address"/);
   assert.match(html, /Connect by address/);
+  assert.match(html, /function requirePreloadBridges\(/);
+  assert.match(html, /Desktop bridge missing/);
+  assert.equal(
+    /window\.miner\.onLog\(/.test(html) && !/preloadOk && window\.miner/.test(html),
+    false,
+    'window.miner.onLog must be guarded so a missing bridge cannot blank-crash',
+  );
   assert.match(html, /class="pw-eye"[^>]*data-target="setup-password"/);
   assert.match(html, /class="pw-eye"[^>]*data-target="ks-modal-password"/);
   assert.match(html, /class="pw-eye"[^>]*data-target="ks-modal-pin"/);

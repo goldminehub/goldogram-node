@@ -1,5 +1,4 @@
 const { contextBridge, ipcRenderer } = require('electron');
-const gogAddress = require('./gog_address');
 
 function invokeLogged(handler, ...args) {
   return ipcRenderer.invoke(handler, ...args).catch((err) => {
@@ -50,7 +49,7 @@ contextBridge.exposeInMainWorld('miner', {
 });
 
 contextBridge.exposeInMainWorld('gogAddress', {
-  validate: (addr) => gogAddress.validateGogAddress(addr),
-  extract: (raw) => gogAddress.extractGogAddress(raw),
-  INVALID: gogAddress.INVALID_GOGX_ADDRESS,
+  validate: (addr) => invokeLogged('gog-address-validate', addr),
+  extract: (raw) => invokeLogged('gog-address-extract', raw),
+  INVALID: 'This is not a valid GoGX address.',
 });

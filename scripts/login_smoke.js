@@ -8,6 +8,7 @@
  */
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
+const gogAddress = require('../src/gog_address');
 
 const RENDERER = path.join(__dirname, '../renderer/index.html');
 
@@ -27,17 +28,19 @@ app.whenReady().then(async () => {
   for (const h of handlers) {
     ipcMain.handle(h, async () => {
       if (h === 'keystore-list') return { addresses: [], exists: false, path: '' };
-      if (h === 'get-app-version') return '1.2.46-smoke';
+      if (h === 'get-app-version') return '1.2.47-smoke';
       if (h === 'get-sysinfo') {
-        return { platform: process.platform, arch: process.arch, cpus: 1, totalMem: 1, freeMem: 1, appVersion: '1.2.46-smoke' };
+        return { platform: process.platform, arch: process.arch, cpus: 1, totalMem: 1, freeMem: 1, appVersion: '1.2.47-smoke' };
       }
       if (h === 'get-disk-stats') {
         return { ok: true, dbText: '0 B', freeText: '1 GB', dbBytes: 0, freeBytes: 1e9 };
       }
-      if (h === 'get-update-status') return { automatic: true, lastCheckedAt: 0, currentVersion: '1.2.46-smoke' };
+      if (h === 'get-update-status') return { automatic: true, lastCheckedAt: 0, currentVersion: '1.2.47-smoke' };
       return { ok: true };
     });
   }
+  ipcMain.handle('gog-address-validate', (_e, addr) => gogAddress.validateGogAddress(addr));
+  ipcMain.handle('gog-address-extract', (_e, raw) => gogAddress.extractGogAddress(raw));
   ipcMain.on('renderer-ipc-reject', () => {});
   ipcMain.on('renderer-error', () => {});
 
@@ -49,7 +52,7 @@ app.whenReady().then(async () => {
       preload: path.join(__dirname, '../src/preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
+      sandbox: true,
     },
   });
 
@@ -70,11 +73,18 @@ app.whenReady().then(async () => {
     overlay: !!document.getElementById('setup-overlay'),
     addressStep: !!document.getElementById('setup-step-address'),
     fatal: !!document.getElementById('fatal-error-overlay'),
+    miner: typeof window.miner,
+    node: typeof window.node,
+    gogAddress: typeof window.gogAddress,
+    updater: typeof window.updater,
   })`);
   console.log('presence', presence);
   if (presence.setupLogin !== 'function') return fail('setupLogin not defined — script parse failed?');
   if (presence.setupConnectByAddress !== 'function') return fail('setupConnectByAddress not defined');
   if (!presence.addressStep) return fail('setup-step-address missing');
+  if (presence.miner !== 'object') return fail('window.miner missing — sandboxed preload failed: ' + JSON.stringify(presence));
+  if (presence.node !== 'object') return fail('window.node missing — sandboxed preload failed');
+  if (presence.gogAddress !== 'object') return fail('window.gogAddress missing — sandboxed preload failed');
   if (presence.eyeButtons < 1) return fail('no eye buttons');
 
   // 2) Eye toggle keeps value

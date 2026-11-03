@@ -30,6 +30,14 @@ const {
 const { createAutoUpdateController } = require('./auto_update');
 const { collectDiskStats, wipeBlocksDir, defaultDatadir } = require('./disk_stats');
 const { appendMainLog } = require('./main_log');
+const gogAddress = require('./gog_address');
+
+const SMOKE = process.argv.includes('--smoke') || process.env.GOLDOGRAM_SMOKE === '1';
+if (SMOKE) {
+  app.setPath('userData', path.join(os.tmpdir(), 'goldogram-node-smoke-' + process.pid));
+  app.commandLine.appendSwitch('disable-gpu');
+  app.commandLine.appendSwitch('headless');
+}
 
 let mainWindow;
 let nodeProcess = null;
@@ -41,6 +49,8 @@ let unlockedKeystore = null;
 let lastNodeStartOpts = null;
 /** @type {ReturnType<typeof createAutoUpdateController> | null} */
 let updateController = null;
+const smokeConsoleErrors = [];
+let smokeFinished = false;
 
 // Multiple seeds: DNS name first (survives IP changes), raw IP as fallback.
 // The node also remembers good peers in peers.dat and retries them at startup,
@@ -254,26 +264,47 @@ function createWindow() {
     height: 700,
     minWidth: 800,
     minHeight: 600,
+    show: !SMOKE,
     backgroundColor: '#0a0a0a',
     titleBarStyle: process.platform === 'win32' ? 'default' : 'hiddenInset',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      sandbox: true,
       preload: path.join(__dirname, 'preload.js'),
     },
     icon: path.join(__dirname, '../assets/icon.png'),
   });
   mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
-  mainWindow.webContents.once('did-finish-load', flushDashLogs);
+  mainWindow.webContents.once('did-finish-load', () => {
+    flushDashLogs();
+    if (SMOKE) void runPackagedSmoke(mainWindow);
+  });
   mainWindow.webContents.on('console-message', (_e, level, message, line, sourceId) => {
     appendMainLog(`[Renderer console L${level}] ${message} (${sourceId}:${line})`);
+    if (SMOKE && level >= 2) smokeConsoleErrors.push(`${message} (${sourceId}:${line})`);
   });
   mainWindow.webContents.on('did-fail-load', (_e, code, desc, url) => {
     appendMainLog(`[Renderer] did-fail-load ${code} ${desc} ${url}`);
   });
+  mainWindow.webContents.on('preload-error', (_e, preloadPath, error) => {
+    const msg = error && error.message ? error.message : String(error || 'preload failed');
+    appendMainLog(`[Preload] ${preloadPath}: ${msg}`);
+    if (SMOKE) smokeConsoleErrors.push('preload-error ' + msg);
+  });
 }
 
 app.whenReady().then(async () => {
+  if (SMOKE) {
+    setTimeout(() => {
+      if (!smokeFinished) {
+        console.error('PACKAGED_SMOKE FAIL: timed out before smoke finished');
+        app.exit(1);
+      }
+    }, 45000).unref();
+    createWindow();
+    return;
+  }
   await killGoldogramOrphans();
   createWindow();
   updateController = createAutoUpdateController({
@@ -299,7 +330,7 @@ app.on('activate', () => {
 app.on('window-all-closed', () => {
   if (updateController) updateController.stop();
   stopTrackedNode();
-  if (process.platform !== 'darwin') app.quit();
+  if (SMOKE || process.platform !== 'darwin') app.quit();
 });
 
 async function startFullNode(opts = {}) {
@@ -660,6 +691,103 @@ ipcMain.handle('get-sysinfo', () => {
     appVersion: app.getVersion(),
   };
 });
+
+ipcMain.handle('gog-address-validate', (_event, addr) => gogAddress.validateGogAddress(addr));
+ipcMain.handle('gog-address-extract', (_event, raw) => gogAddress.extractGogAddress(raw));
+
+async function runPackagedSmoke(win) {
+  const started = Date.now();
+  const deadline = started + 20000;
+  let snapshot = null;
+  try {
+    while (Date.now() < deadline) {
+      await sleep(500);
+      snapshot = await win.webContents.executeJavaScript(`({
+        miner: typeof window.miner,
+        node: typeof window.node,
+        updater: typeof window.updater,
+        gogAddress: typeof window.gogAddress,
+        minerOnLog: !!(window.miner && typeof window.miner.onLog === 'function'),
+        overlay: !!(document.getElementById('setup-overlay')),
+        overlayDisplay: (document.getElementById('setup-overlay') || {}).style.display || '',
+        addressStep: !!(document.getElementById('setup-step-address')),
+        addressText: (document.getElementById('setup-step-address') && document.getElementById('setup-step-address').textContent) || '',
+        fatalDisplay: (document.getElementById('fatal-error-overlay') || {}).style.display || 'none',
+        fatalText: (document.getElementById('fatal-error-text') || {}).textContent || '',
+      })`);
+      const uncaught = smokeConsoleErrors.filter((m) =>
+        /Uncaught|TypeError|ReferenceError|is not defined|preload-error/i.test(m));
+      if (uncaught.length) {
+        smokeFinished = true;
+        console.error('PACKAGED_SMOKE FAIL: renderer error');
+        console.error(uncaught.join('\n'));
+        app.exit(1);
+        return;
+      }
+      if (snapshot && /TypeError|ReferenceError|bridge missing/i.test(snapshot.fatalText || '')) {
+        smokeFinished = true;
+        console.error('PACKAGED_SMOKE FAIL: fatal overlay');
+        console.error(snapshot.fatalText);
+        app.exit(1);
+        return;
+      }
+    }
+    const uncaught = smokeConsoleErrors.filter((m) =>
+      /Uncaught|TypeError|ReferenceError|is not defined|preload-error/i.test(m));
+    if (uncaught.length) {
+      smokeFinished = true;
+      console.error('PACKAGED_SMOKE FAIL: renderer error');
+      console.error(uncaught.join('\n'));
+      app.exit(1);
+      return;
+    }
+    if (!snapshot) {
+      smokeFinished = true;
+      console.error('PACKAGED_SMOKE FAIL: no renderer snapshot');
+      app.exit(1);
+      return;
+    }
+    if (snapshot.miner !== 'object' || !snapshot.minerOnLog) {
+      smokeFinished = true;
+      console.error('PACKAGED_SMOKE FAIL: window.miner missing', JSON.stringify(snapshot));
+      app.exit(1);
+      return;
+    }
+    if (snapshot.node !== 'object' || snapshot.gogAddress !== 'object' || snapshot.updater !== 'object') {
+      smokeFinished = true;
+      console.error('PACKAGED_SMOKE FAIL: preload bridge missing', JSON.stringify(snapshot));
+      app.exit(1);
+      return;
+    }
+    if (!snapshot.addressStep || snapshot.overlayDisplay === 'none') {
+      smokeFinished = true;
+      console.error('PACKAGED_SMOKE FAIL: address overlay not rendered', JSON.stringify(snapshot));
+      app.exit(1);
+      return;
+    }
+    if (!/Connect by address|Master wallet/i.test(snapshot.addressText || '')) {
+      smokeFinished = true;
+      console.error('PACKAGED_SMOKE FAIL: address overlay empty', JSON.stringify(snapshot));
+      app.exit(1);
+      return;
+    }
+    smokeFinished = true;
+    console.log('PACKAGED_SMOKE OK');
+    console.log(JSON.stringify({
+      waitedMs: Date.now() - started,
+      version: app.getVersion(),
+      miner: snapshot.miner,
+      overlayDisplay: snapshot.overlayDisplay,
+      addressStep: snapshot.addressStep,
+      consoleErrors: smokeConsoleErrors.length,
+    }));
+    app.exit(0);
+  } catch (err) {
+    smokeFinished = true;
+    console.error('PACKAGED_SMOKE FAIL:', err && err.message ? err.message : err);
+    app.exit(1);
+  }
+}
 
 ipcMain.on('renderer-ipc-reject', (_event, payload = {}) => {
   appendMainLog(`[IPC reject] ${payload.handler || '?'}: ${payload.message || 'unknown'}`);

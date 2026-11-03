@@ -47,4 +47,19 @@
     var stack = reason && reason.stack ? reason.stack : '';
     paint('unhandledrejection', msg, stack);
   });
+
+  window.addEventListener('DOMContentLoaded', function () {
+    var missing = [];
+    if (!window.node) missing.push('node');
+    if (!window.miner) missing.push('miner');
+    if (!window.updater) missing.push('updater');
+    if (!window.gogAddress) missing.push('gogAddress');
+    if (!missing.length) return;
+    paint(
+      'preload',
+      'Desktop bridge missing: window.' + missing.join(', window.')
+        + '. Preload did not load. Reinstall Goldogram Node.',
+      ''
+    );
+  });
 })();
