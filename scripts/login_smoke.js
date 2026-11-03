@@ -27,14 +27,14 @@ app.whenReady().then(async () => {
   for (const h of handlers) {
     ipcMain.handle(h, async () => {
       if (h === 'keystore-list') return { addresses: [], exists: false, path: '' };
-      if (h === 'get-app-version') return '1.2.45-smoke';
+      if (h === 'get-app-version') return '1.2.46-smoke';
       if (h === 'get-sysinfo') {
-        return { platform: process.platform, arch: process.arch, cpus: 1, totalMem: 1, freeMem: 1, appVersion: '1.2.45-smoke' };
+        return { platform: process.platform, arch: process.arch, cpus: 1, totalMem: 1, freeMem: 1, appVersion: '1.2.46-smoke' };
       }
       if (h === 'get-disk-stats') {
         return { ok: true, dbText: '0 B', freeText: '1 GB', dbBytes: 0, freeBytes: 1e9 };
       }
-      if (h === 'get-update-status') return { automatic: true, lastCheckedAt: 0, currentVersion: '1.2.45-smoke' };
+      if (h === 'get-update-status') return { automatic: true, lastCheckedAt: 0, currentVersion: '1.2.46-smoke' };
       return { ok: true };
     });
   }
@@ -64,13 +64,17 @@ app.whenReady().then(async () => {
   // 1) Syntax / handler presence
   const presence = await win.webContents.executeJavaScript(`({
     setupLogin: typeof setupLogin,
+    setupConnectByAddress: typeof setupConnectByAddress,
     wirePasswordEyes: typeof wirePasswordEyes,
     eyeButtons: document.querySelectorAll('.pw-eye').length,
     overlay: !!document.getElementById('setup-overlay'),
+    addressStep: !!document.getElementById('setup-step-address'),
     fatal: !!document.getElementById('fatal-error-overlay'),
   })`);
   console.log('presence', presence);
   if (presence.setupLogin !== 'function') return fail('setupLogin not defined — script parse failed?');
+  if (presence.setupConnectByAddress !== 'function') return fail('setupConnectByAddress not defined');
+  if (!presence.addressStep) return fail('setup-step-address missing');
   if (presence.eyeButtons < 1) return fail('no eye buttons');
 
   // 2) Eye toggle keeps value
@@ -107,6 +111,37 @@ app.whenReady().then(async () => {
   console.log('wrong-password msg:', wrong);
   if (!/Invalid credentials|Login failed/i.test(String(wrong))) {
     return fail('wrong password did not show error: ' + wrong);
+  }
+
+  // 3b) Client-custody account → connect-by-address, not invalid_credentials
+  const custody = await win.webContents.executeJavaScript(`
+    (async function () {
+      window.fetch = async function () {
+        return {
+          ok: false,
+          status: 401,
+          json: async () => ({
+            error: 'client_custody_use_address',
+            message: 'This account uses on-device keys — connect by address.',
+          }),
+        };
+      };
+      document.getElementById('setup-username').value = 'newuser';
+      document.getElementById('setup-password').value = 'whatever';
+      await setupLogin();
+      return {
+        msg: document.getElementById('setup-msg').textContent,
+        addressStep: document.getElementById('setup-step-address').style.display,
+        loginStep: document.getElementById('setup-step-login').style.display,
+      };
+    })()
+  `);
+  console.log('custody-login', custody);
+  if (!/on-device keys|connect by address/i.test(String(custody.msg))) {
+    return fail('client-custody login did not show connect-by-address: ' + custody.msg);
+  }
+  if (custody.addressStep === 'none') {
+    return fail('client-custody login did not switch to address mode');
   }
 
   // 4) Successful login → keystore step (dashboard path)

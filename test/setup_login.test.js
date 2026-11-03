@@ -5,13 +5,18 @@ const assert = require('node:assert/strict');
 const {
   setElValue,
   applySetupLoginSuccess,
+  applyAddressConnect,
   sessionFromLogin,
+  sessionFromAddress,
+  loginErrorMessage,
   shortGogAddress,
   readLoginSession,
   writeLoginSession,
   clearLoginSession,
   renderAccountHeader,
   SESSION_KEY,
+  CUSTODY_USE_ADDRESS,
+  CUSTODY_USE_ADDRESS_MSG,
 } = require('../renderer/setup_login');
 
 function makeDoc(idsWithValue) {
@@ -116,4 +121,38 @@ test('dashboard header shows username, short address, and Reward address', () =>
   assert.equal(renderAccountHeader(doc, null), false);
   assert.equal(doc._el('dash-account-user').textContent, 'Not logged in');
   assert.equal(doc._el('dash-logout').style.display, 'none');
+});
+
+test('address connect closes overlay, wires miner address, stores no token', () => {
+  const doc = makeDoc([
+    'setup-address',
+    'setup-step-address',
+    'setup-step-login',
+    'setup-overlay',
+    'miner-address',
+    'v1-address',
+    'cfg-validator',
+  ]);
+  const out = applyAddressConnect(doc, 'GoDTSy9XUGYu2v2ggUdt4y8RKN6kmSz26kjNWnU4qnYRNT');
+  assert.equal(out.token, '');
+  assert.equal(out.goDashboard, true);
+  assert.equal(doc._el('miner-address').value, 'GoDTSy9XUGYu2v2ggUdt4y8RKN6kmSz26kjNWnU4qnYRNT');
+  assert.equal(doc._el('setup-overlay').style.display, 'none');
+  const session = sessionFromAddress(out.address);
+  const doc2 = makeDoc(['dash-account-user', 'dash-account-meta', 'dash-logout', 'dash-switch']);
+  assert.equal(renderAccountHeader(doc2, session), true);
+  assert.equal(doc2._el('dash-account-user').textContent, 'Connected');
+  assert.match(doc2._el('dash-account-meta').textContent, /Reward address/);
+});
+
+test('legacy-style login on a client-custody account maps to the connect-by-address sentence', () => {
+  assert.equal(CUSTODY_USE_ADDRESS, 'client_custody_use_address');
+  assert.equal(
+    loginErrorMessage({ error: CUSTODY_USE_ADDRESS, message: CUSTODY_USE_ADDRESS_MSG }, 401),
+    CUSTODY_USE_ADDRESS_MSG,
+  );
+  assert.equal(
+    loginErrorMessage({ error: 'invalid_credentials' }, 401),
+    'invalid_credentials',
+  );
 });

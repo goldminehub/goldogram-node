@@ -120,17 +120,23 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
         <line x1="2" y1="16" x2="22" y2="16"/>
       </svg>
       <h1 style="font-size:20px;font-weight:700;color:#D4AF37;margin-bottom:6px;">Goldogram Full Node</h1>
-      <p style="font-size:13px;color:#555;line-height:1.5;">Login with your Goldogram account to connect your wallet.</p>
+      <p style="font-size:13px;color:#555;line-height:1.5;">Connect by Master wallet address. Mining rewards go to that address. No password is stored.</p>
     </div>
-    <div id="setup-step-login">
+    <div id="setup-step-address">
+      <input id="setup-address" placeholder="Paste or scan Master wallet address (Go…)" autocomplete="off" spellcheck="false" style="width:100%;background:#0d0d0d;border:1px solid #222;border-radius:8px;padding:10px 14px;color:#e8e0cc;font-size:13px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;outline:none;box-sizing:border-box;margin-bottom:10px;"/>
+      <button type="button" onclick="setupConnectByAddress()" style="width:100%;padding:12px;background:linear-gradient(135deg,#D4AF37,#A67C00);color:#000;font-weight:700;font-size:14px;border:none;border-radius:8px;cursor:pointer;margin-bottom:10px;">Connect by address</button>
+      <button type="button" onclick="showLegacyLogin()" style="width:100%;padding:10px;background:#151515;color:#888;border:1px solid #222;border-radius:8px;cursor:pointer;font-size:13px;margin-bottom:10px;">Legacy username / password</button>
+    </div>
+    <div id="setup-step-login" style="display:none;">
       <input id="setup-username" placeholder="Username" style="width:100%;background:#0d0d0d;border:1px solid #222;border-radius:8px;padding:10px 14px;color:#e8e0cc;font-size:14px;outline:none;box-sizing:border-box;margin-bottom:10px;"/>
       <div style="position:relative;margin-bottom:16px;">
         <input id="setup-password" type="password" placeholder="Password" style="width:100%;background:#0d0d0d;border:1px solid #222;border-radius:8px;padding:10px 40px 10px 14px;color:#e8e0cc;font-size:14px;outline:none;box-sizing:border-box;"/>
         <button type="button" class="pw-eye" data-target="setup-password" aria-label="Show password" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#888;padding:4px;font-size:14px;line-height:1;">Show</button>
       </div>
-      <button onclick="setupLogin()" style="width:100%;padding:12px;background:linear-gradient(135deg,#D4AF37,#A67C00);color:#000;font-weight:700;font-size:14px;border:none;border-radius:8px;cursor:pointer;margin-bottom:10px;">Login to Goldogram</button>
-      <div id="setup-msg" style="font-size:12px;text-align:center;min-height:20px;"></div>
+      <button type="button" onclick="setupLogin()" style="width:100%;padding:12px;background:linear-gradient(135deg,#D4AF37,#A67C00);color:#000;font-weight:700;font-size:14px;border:none;border-radius:8px;cursor:pointer;margin-bottom:10px;">Login to Goldogram</button>
+      <button type="button" onclick="showAddressConnect()" style="width:100%;padding:10px;background:#151515;color:#888;border:1px solid #222;border-radius:8px;cursor:pointer;font-size:13px;margin-bottom:10px;">Connect by address instead</button>
     </div>
+    <div id="setup-msg" style="font-size:12px;text-align:center;min-height:20px;"></div>
     <div id="setup-step-keystore" style="display:none;">
       <h2 style="font-size:16px;font-weight:700;color:#D4AF37;margin:0 0 8px;text-align:center;">Create validator keystore</h2>
       <p style="font-size:12px;color:#666;line-height:1.5;margin:0 0 16px;text-align:center;">Exports your Dilithium key and wraps it with Argon2id into keystore.json. Electron has no window.prompt — enter password and PIN here.</p>
@@ -1400,6 +1406,8 @@ function finishSetupAfterKeystore() {
   if (ksStep) ksStep.style.display = 'none';
   const loginStep = document.getElementById('setup-step-login');
   if (loginStep) loginStep.style.display = 'none';
+  const addrStep = document.getElementById('setup-step-address');
+  if (addrStep) addrStep.style.display = 'none';
   const submitBtn = document.getElementById('ks-modal-submit');
   if (submitBtn) submitBtn.disabled = false;
   showPanel('dashboard');
@@ -1714,8 +1722,91 @@ function showLoginError(text) {
   } catch (_) {}
 }
 
+function showAddressConnect() {
+  const addrStep = document.getElementById('setup-step-address');
+  const loginStep = document.getElementById('setup-step-login');
+  const ksStep = document.getElementById('setup-step-keystore');
+  if (ksStep) ksStep.style.display = 'none';
+  if (loginStep) loginStep.style.display = 'none';
+  if (addrStep) addrStep.style.display = 'block';
+  const addrEl = document.getElementById('setup-address');
+  if (addrEl) addrEl.focus();
+}
+
+function showLegacyLogin() {
+  const addrStep = document.getElementById('setup-step-address');
+  const loginStep = document.getElementById('setup-step-login');
+  const ksStep = document.getElementById('setup-step-keystore');
+  if (ksStep) ksStep.style.display = 'none';
+  if (addrStep) addrStep.style.display = 'none';
+  if (loginStep) loginStep.style.display = 'block';
+  const userEl = document.getElementById('setup-username');
+  if (userEl) userEl.focus();
+}
+
+async function refreshPublicAccountStats(address) {
+  const addr = String(address || '').trim();
+  if (!addr) return null;
+  try {
+    const res = await fetch(API + '/api/wallet/balance/' + encodeURIComponent(addr));
+    const data = await res.json().catch(() => ({}));
+    const gog = Number(data && data.balance_gog);
+    const text = Number.isFinite(gog) ? (gog.toFixed(2) + ' GoGX') : '';
+    const sessionApi = window.GoldogramSetupLogin || {};
+    const session = sessionApi.readLoginSession ? sessionApi.readLoginSession(localStorage) : null;
+    if (session && session.address === addr && sessionApi.renderAccountHeader) {
+      session.balanceText = text;
+      sessionApi.renderAccountHeader(document, session);
+    }
+    return data;
+  } catch (_) {
+    return null;
+  }
+}
+
+function applyConnectedAddress(address) {
+  const sessionApi = window.GoldogramSetupLogin || {};
+  const applied = sessionApi.applyAddressConnect
+    ? sessionApi.applyAddressConnect(document, address)
+    : null;
+  setupToken = '';
+  setupAddress = (applied && applied.address) || address;
+  setupUsername = '';
+  const session = sessionApi.sessionFromAddress
+    ? sessionApi.sessionFromAddress(setupAddress)
+    : { username: '', address: setupAddress };
+  if (sessionApi.writeLoginSession) sessionApi.writeLoginSession(localStorage, session);
+  if (sessionApi.renderAccountHeader) sessionApi.renderAccountHeader(document, session);
+  try { localStorage.setItem('gog_address', setupAddress); } catch (_) {}
+  void refreshPublicAccountStats(setupAddress);
+}
+
+async function setupConnectByAddress() {
+  const msg = document.getElementById('setup-msg');
+  try {
+    const rawEl = document.getElementById('setup-address');
+    const raw = rawEl ? String(rawEl.value || '').trim() : '';
+    if (!raw) {
+      showLoginError('Paste or scan a Master wallet address.');
+      return;
+    }
+    const api = window.gogAddress || {};
+    const extracted = api.extract ? api.extract(raw) : null;
+    if (!extracted) {
+      showLoginError((api.INVALID) || 'This is not a valid GoGX address.');
+      return;
+    }
+    if (rawEl) rawEl.value = extracted;
+    if (msg) { msg.style.color = '#4ade80'; msg.textContent = 'Connected by address'; }
+    applyConnectedAddress(extracted);
+  } catch (e) {
+    showLoginError((e && e.message) ? e.message : String(e));
+  }
+}
+
 async function setupLogin() {
   const msg = document.getElementById('setup-msg');
+  const sessionApi = window.GoldogramSetupLogin || {};
   try {
     const userEl = document.getElementById('setup-username');
     const passEl = document.getElementById('setup-password');
@@ -1738,8 +1829,17 @@ async function setupLogin() {
       showLoginError('Login failed (bad response HTTP ' + res.status + ')');
       return;
     }
+    if (data && data.error === (sessionApi.CUSTODY_USE_ADDRESS || 'client_custody_use_address')) {
+      showLoginError(sessionApi.loginErrorMessage
+        ? sessionApi.loginErrorMessage(data, res.status)
+        : (data.message || sessionApi.CUSTODY_USE_ADDRESS_MSG || 'This account uses on-device keys — connect by address'));
+      showAddressConnect();
+      return;
+    }
     if (!res.ok || !data || !data.token) {
-      showLoginError((data && data.error) || ('Login failed (HTTP ' + res.status + ')'));
+      showLoginError(sessionApi.loginErrorMessage
+        ? sessionApi.loginErrorMessage(data, res.status)
+        : ((data && data.error) || ('Login failed (HTTP ' + res.status + ')')));
       return;
     }
     const applied = (window.GoldogramSetupLogin || {}).applySetupLoginSuccess
@@ -1748,7 +1848,6 @@ async function setupLogin() {
     setupToken = (applied && applied.token) || data.token;
     setupAddress = (applied && applied.address) || (data.wallet && data.wallet.gog_address) || '';
     setupUsername = (applied && applied.username) || username;
-    const sessionApi = window.GoldogramSetupLogin || {};
     const session = sessionApi.sessionFromLogin
       ? sessionApi.sessionFromLogin(data, username)
       : { username: setupUsername, address: setupAddress };
@@ -1786,13 +1885,12 @@ function setupSkip() {
 
 function switchAccount() {
   const overlay = document.getElementById('setup-overlay');
-  const loginStep = document.getElementById('setup-step-login');
   const ksStep = document.getElementById('setup-step-keystore');
   if (ksStep) ksStep.style.display = 'none';
-  if (loginStep) loginStep.style.display = 'block';
   if (overlay) overlay.style.display = 'flex';
   const msg = document.getElementById('setup-msg');
   if (msg) msg.textContent = '';
+  showAddressConnect();
 }
 
 function logoutAccount() {
@@ -1896,6 +1994,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (overlay) overlay.style.display = 'none';
     if (savedSession.address) {
       try { localStorage.setItem('gog_address', savedSession.address); } catch (_) {}
+      void refreshPublicAccountStats(savedSession.address);
     }
   }
   if (window.DashStatus) paintDashVisual(false, { mining: {}, sync_state: 'idle', height: 0 });

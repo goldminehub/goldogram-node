@@ -1,4 +1,5 @@
 const { contextBridge, ipcRenderer } = require('electron');
+const gogAddress = require('./gog_address');
 
 function invokeLogged(handler, ...args) {
   return ipcRenderer.invoke(handler, ...args).catch((err) => {
@@ -46,4 +47,10 @@ contextBridge.exposeInMainWorld('miner', {
   stop: () => invokeLogged('stop-miner'),
   onLog: (cb) => ipcRenderer.on('miner-log', (_, msg) => cb(msg)),
   onStopped: (cb) => ipcRenderer.on('miner-stopped', (_, msg) => cb(msg)),
+});
+
+contextBridge.exposeInMainWorld('gogAddress', {
+  validate: (addr) => gogAddress.validateGogAddress(addr),
+  extract: (raw) => gogAddress.extractGogAddress(raw),
+  INVALID: gogAddress.INVALID_GOGX_ADDRESS,
 });

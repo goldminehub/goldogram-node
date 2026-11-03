@@ -1,15 +1,16 @@
 {
   "name": "goldogram-node",
-  "version": "1.2.45",
+  "version": "1.2.46",
   "description": "Goldogram Full Node",
   "author": "Goldogram <support@goldminequant.org>",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
-    "test": "node --test test/node_args.test.js test/process_kill.test.js test/mining_format.test.js test/setup_login.test.js test/keystore_sign.test.js test/dash_status.test.js test/auto_update.test.js test/disk_stats.test.js test/renderer_syntax.test.js test/alias_resolve_sign.test.js",
+    "test": "node --test test/node_args.test.js test/process_kill.test.js test/mining_format.test.js test/setup_login.test.js test/keystore_sign.test.js test/dash_status.test.js test/auto_update.test.js test/disk_stats.test.js test/renderer_syntax.test.js test/alias_resolve_sign.test.js test/gog_address.test.js",
     "build:win": "electron-builder --win --x64",
-    "build:mac": "electron-builder --mac --x64",
+    "build:mac": "electron-builder --mac --arm64",
     "build:linux": "electron-builder --linux --x64",
+    "release": "electron-builder --win --x64 --mac --arm64 --publish always",
     "test:login-smoke": "xvfb-run -a electron scripts/login_smoke.js",
     "test:all": "npm test && npm run test:login-smoke"
   },
@@ -21,6 +22,7 @@
       "oneClick": true
     },
     "win": {
+      "artifactName": "Goldogram-Node-Setup-${version}.${ext}",
       "target": [
         {
           "target": "nsis",
@@ -39,11 +41,12 @@
     },
     "mac": {
       "category": "public.app-category.utilities",
+      "artifactName": "Goldogram-Node-${version}-mac-${arch}.${ext}",
       "target": [
         {
           "target": "zip",
           "arch": [
-            "x64"
+            "arm64"
           ]
         }
       ],
@@ -88,6 +91,7 @@
     "electron-builder": "^26.0.0"
   },
   "dependencies": {
-    "electron-updater": "^6.8.9"
+    "electron-updater": "^6.8.9",
+    "@noble/hashes": "^1.8.0"
   }
 }

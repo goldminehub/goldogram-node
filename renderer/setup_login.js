@@ -86,6 +86,46 @@
   }
 
   const SESSION_KEY = 'goldogram_login_session';
+  const CUSTODY_USE_ADDRESS = 'client_custody_use_address';
+  const CUSTODY_USE_ADDRESS_MSG =
+    'This account uses on-device keys — connect by address';
+
+  /**
+   * Address-only connect (client-custody default). No token, no password.
+   * Wires miner/validator address fields and closes the overlay.
+   */
+  function applyAddressConnect(doc, address, opts) {
+    const options = opts && typeof opts === 'object' ? opts : {};
+    const keepOverlay = !!options.keepOverlay;
+    const addr = String(address || '').trim();
+    setElValue(doc, 'v1-address', addr);
+    setElValue(doc, 'cfg-validator', addr);
+    setElValue(doc, 'miner-address', addr);
+    setElValue(doc, 'setup-address', addr);
+    setElValue(doc, 'validator-address', addr);
+    setElText(doc, 'setup-address-display', addr);
+    setElDisplay(doc, 'setup-step-login', 'none');
+    setElDisplay(doc, 'setup-step-address', 'none');
+    setElDisplay(doc, 'setup-step-welcome', 'none');
+    if (!keepOverlay) {
+      setElDisplay(doc, 'setup-overlay', 'none');
+    }
+    return { token: '', address: addr, username: '', goDashboard: !keepOverlay, keepOverlay };
+  }
+
+  function sessionFromAddress(address) {
+    const addr = String(address || '').trim();
+    if (!addr) return null;
+    return { username: '', address: addr };
+  }
+
+  function loginErrorMessage(data, status) {
+    if (data && data.error === CUSTODY_USE_ADDRESS) {
+      return (data.message && String(data.message).trim()) || CUSTODY_USE_ADDRESS_MSG;
+    }
+    if (data && data.error) return String(data.error);
+    return 'Login failed (HTTP ' + status + ')';
+  }
 
   function sessionFromLogin(data, username) {
     const address =
@@ -151,10 +191,16 @@
     const logout = doc && doc.getElementById ? doc.getElementById('dash-logout') : null;
     const sw = doc && doc.getElementById ? doc.getElementById('dash-switch') : null;
     const loggedIn = !!(session && (session.username || session.address));
-    if (userEl) userEl.textContent = loggedIn ? (session.username || 'Account') : 'Not logged in';
+    if (userEl) {
+      userEl.textContent = loggedIn
+        ? (session.username || 'Connected')
+        : 'Not logged in';
+    }
     if (metaEl) {
       if (loggedIn && session.address) {
-        metaEl.textContent = shortGogAddress(session.address) + ' · Reward address';
+        let meta = shortGogAddress(session.address) + ' · Reward address';
+        if (session.balanceText) meta += ' · ' + session.balanceText;
+        metaEl.textContent = meta;
       } else {
         metaEl.textContent = '';
       }
@@ -169,8 +215,13 @@
     setElText,
     setElDisplay,
     applySetupLoginSuccess,
+    applyAddressConnect,
     SESSION_KEY,
+    CUSTODY_USE_ADDRESS,
+    CUSTODY_USE_ADDRESS_MSG,
     sessionFromLogin,
+    sessionFromAddress,
+    loginErrorMessage,
     shortGogAddress,
     readLoginSession,
     writeLoginSession,

@@ -46,6 +46,9 @@ test('renderer inline script parses (no SyntaxError)', () => {
 test('login UI has eye toggles type=button and fatal overlay', () => {
   const html = fs.readFileSync(HTML, 'utf8');
   assert.match(html, /id="fatal-error-overlay"/);
+  assert.match(html, /id="setup-step-address"/);
+  assert.match(html, /id="setup-address"/);
+  assert.match(html, /Connect by address/);
   assert.match(html, /class="pw-eye"[^>]*data-target="setup-password"/);
   assert.match(html, /class="pw-eye"[^>]*data-target="ks-modal-password"/);
   assert.match(html, /class="pw-eye"[^>]*data-target="ks-modal-pin"/);
