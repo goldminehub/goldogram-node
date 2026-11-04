@@ -410,11 +410,14 @@ body{background:#0a0a0a;color:#e8e0cc;font-family:-apple-system,BlinkMacSystemFo
 
         <!-- Sync Status -->
         <div id="mining-sync-banner" style="background:#1a1400;border:1px solid #2a2000;border-radius:8px;padding:12px 16px;margin-bottom:16px;display:none;">
-          <div style="font-size:12px;color:#D4AF37;font-weight:600;margin-bottom:6px;">⏳ Syncing blockchain before mining...</div>
-          <div style="background:#0d0d0d;border-radius:4px;height:6px;overflow:hidden;">
-            <div id="mining-sync-bar" style="height:100%;background:#D4AF37;width:0%;transition:width 0.5s;"></div>
+          <div id="mining-sync-progress">
+            <div style="font-size:12px;color:#D4AF37;font-weight:600;margin-bottom:6px;">⏳ Syncing blockchain before mining...</div>
+            <div style="background:#0d0d0d;border-radius:4px;height:6px;overflow:hidden;">
+              <div id="mining-sync-bar" style="height:100%;background:#D4AF37;width:0%;transition:width 0.5s;"></div>
+            </div>
+            <div id="mining-sync-text" style="font-size:11px;color:#666;margin-top:6px;">0 / 0 blocks</div>
           </div>
-          <div id="mining-sync-text" style="font-size:11px;color:#666;margin-top:6px;">0 / 0 blocks</div>
+          <div id="mining-sync-msg" style="display:none;"></div>
         </div>
 
         <!-- Miner Config -->
@@ -554,6 +557,14 @@ let statusInterval = null;
 let uptimeInterval = null;
 let logLines = [];
 
+function ui(id) {
+  return document.getElementById(id);
+}
+function uiText(id, value) {
+  const n = document.getElementById(id);
+  if (n) n.textContent = value;
+}
+
 function showPanel(name, ev) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -643,41 +654,40 @@ function setMiningStopped(reason) {
 
 function setRunning(val) {
   running = val;
-  const dot = document.getElementById('status-dot');
-  const txt = document.getElementById('status-text');
-  const btnStart = document.getElementById('btn-start');
-  const btnStop = document.getElementById('btn-stop');
-  const badge = document.getElementById('node-status-badge');
+  const dot = ui('status-dot');
+  const txt = ui('status-text');
+  const btnStart = ui('btn-start');
+  const btnStop = ui('btn-stop');
+  const badge = ui('node-status-badge');
   if (val) {
-    dot.className = 'status-dot running';
-    txt.textContent = 'Running';
-    btnStart.style.display = 'none';
-    btnStop.style.display = '';
-    badge.innerHTML = '<span class="badge badge-green">Running</span>';
+    if (dot) dot.className = 'status-dot running';
+    if (txt) txt.textContent = 'Running';
+    if (btnStart) btnStart.style.display = 'none';
+    if (btnStop) btnStop.style.display = '';
+    if (badge) badge.innerHTML = '<span class="badge badge-green">Running</span>';
     startTime = Date.now();
     uptimeInterval = setInterval(updateUptime, 1000);
   } else {
-    dot.className = 'status-dot';
-    txt.textContent = 'Stopped';
-    btnStart.style.display = '';
-    btnStop.style.display = 'none';
-    badge.innerHTML = '<span class="badge badge-red">Stopped</span>';
+    if (dot) dot.className = 'status-dot';
+    if (txt) txt.textContent = 'Stopped';
+    if (btnStart) btnStart.style.display = '';
+    if (btnStop) btnStop.style.display = 'none';
+    if (badge) badge.innerHTML = '<span class="badge badge-red">Stopped</span>';
     startTime = null;
     clearInterval(uptimeInterval);
-    document.getElementById('uptime-text').textContent = '';
+    uiText('uptime-text', '');
     clearInterval(statusInterval);
-    document.getElementById('stat-height').textContent = '—';
-    document.getElementById('stat-peers').textContent = '—';
-    document.getElementById('stat-diff').textContent = '—';
-    document.getElementById('stat-hash').textContent = '—';
-    const dbEl = document.getElementById('stat-db');
-    const diskEl = document.getElementById('stat-disk');
-    if (dbEl) dbEl.textContent = '—';
-    if (diskEl) diskEl.textContent = '—';
-    document.getElementById('stat-height-sub').textContent = 'Genesis: 0';
-    document.getElementById('sync-state-text').innerHTML = '';
-    document.getElementById('last-block-text').textContent = '';
-    const chainEl = document.getElementById('chain-sync-text');
+    uiText('stat-height', '—');
+    uiText('stat-peers', '—');
+    uiText('stat-diff', '—');
+    uiText('stat-hash', '—');
+    uiText('stat-db', '—');
+    uiText('stat-disk', '—');
+    uiText('stat-height-sub', 'Genesis: 0');
+    const syncEl = ui('sync-state-text');
+    if (syncEl) syncEl.innerHTML = '';
+    uiText('last-block-text', '');
+    const chainEl = ui('chain-sync-text');
     if (chainEl) { chainEl.textContent = 'Chain: —'; chainEl.style.color = '#888'; }
     setMiningStopped();
   }
@@ -685,22 +695,23 @@ function setRunning(val) {
 
 function updateUptime() {
   if (!startTime) return;
+  const el = ui('uptime-text');
+  if (!el) return;
   const s = Math.floor((Date.now() - startTime) / 1000);
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
   const sec = s % 60;
-  document.getElementById('uptime-text').textContent =
-    'Uptime: ' + (h ? h + 'h ' : '') + m + 'm ' + sec + 's';
+  el.textContent = 'Uptime: ' + (h ? h + 'h ' : '') + m + 'm ' + sec + 's';
 }
 
 async function startNode() {
-  const url = document.getElementById('cfg-url').value;
-  const datadir = document.getElementById('cfg-datadir').value;
-  const seeds = document.getElementById('cfg-bootstrap').value;
-  const validatorAddress = document.getElementById('cfg-validator').value.trim()
-    || document.getElementById('v1-address')?.value.trim()
+  const url = (ui('cfg-url') || {}).value;
+  const datadir = (ui('cfg-datadir') || {}).value;
+  const seeds = (ui('cfg-bootstrap') || {}).value;
+  const validatorAddress = ((ui('cfg-validator') || {}).value || '').trim()
+    || (ui('v1-address')?.value || '').trim()
     || '';
-  const validatorStake = document.getElementById('cfg-stake').value;
+  const validatorStake = (ui('cfg-stake') || {}).value;
   addLog('Starting Goldogram Full Node...', 'info');
   let hasKeystore = false;
   try {
@@ -824,11 +835,19 @@ function paintDashVisual(childRunning, d) {
 }
 
 async function fetchStatus() {
+  try {
+    await fetchStatusTick();
+  } catch (e) {
+    console.warn('[fetchStatus]', e && e.message ? e.message : e);
+  }
+}
+
+async function fetchStatusTick() {
   const res = await window.node?.getStatus();
   const processUp = !!(res && (res.running || (res.ok && res.data)));
   const childRunning = processUp;
   if (!processUp) {
-    const mStatus = document.getElementById('miner-stat-status');
+    const mStatus = ui('miner-stat-status');
     if (mStatus) {
       mStatus.textContent = 'Stopped';
       mStatus.style.color = '#555';
@@ -841,12 +860,13 @@ async function fetchStatus() {
   }
   if (!res?.ok) return;
   const d = res.data;
-  document.getElementById('stat-height').textContent = (d.height || 0).toLocaleString();
-  const sub = document.getElementById('stat-height-sub');
+  if (!d) return;
+  uiText('stat-height', (d.height || 0).toLocaleString());
+  const sub = ui('stat-height-sub');
   if (sub && d.network_height) sub.textContent = 'Network: ' + Number(d.network_height).toLocaleString();
-  document.getElementById('stat-peers').textContent = d.peers ?? d.connected_peers ?? d.peer_count ?? '0';
+  uiText('stat-peers', d.peers ?? d.connected_peers ?? d.peer_count ?? '0');
   const diff = d.difficulty;
-  document.getElementById('stat-diff').textContent = (diff == null || diff === 0) ? 'n/a' : diff;
+  uiText('stat-diff', (diff == null || diff === 0) ? 'n/a' : diff);
   paintChainSync(d);
   refreshDiskStats();
   paintNetworkHash(d);
@@ -901,21 +921,34 @@ async function fetchStatus() {
   const mLast = document.getElementById('miner-stat-last');
   if (mLast) mLast.textContent = mf.formatRelativeTime ? mf.formatRelativeTime(mining.last_block_at) : '—';
   renderRecentMined(mining.recent_blocks);
-  const banner = document.getElementById('mining-sync-banner');
-  if (banner) {
-    const forkAt = Number(mining.fork_resynced_at || 0);
-    const forkRecent = forkAt > 0 && (Date.now() / 1000 - forkAt) < 86400;
-    if (forkRecent) {
-      banner.style.display = 'block';
-      banner.innerHTML = '<div style="color:#D4AF37;font-weight:600;">Resynced to the network chain after a fork</div><div style="color:#888;font-size:12px;margin-top:4px;">Local tip was on a private branch; rolled back to the seed and catching up.</div>';
-    } else if (running && (mining.state === 'isolated' || mining.isolated)) {
-      banner.style.display = 'block';
-      banner.innerHTML = '<div style="color:#f87171;font-weight:600;">Isolated — not mining</div><div style="color:#888;font-size:12px;margin-top:4px;">No live seed connection, or local tip is ahead of the seed on a different chain. Mining paused; resyncing to the seed.</div>';
-    } else if (running && mining.state === 'syncing' && d.network_height) {
-      showMinerSyncBanner(d.height || 0, d.network_height);
-    } else if (banner) {
-      banner.style.display = 'none';
+  paintMiningSyncBanner(d, mining);
+}
+
+function paintMiningSyncBanner(d, mining) {
+  const banner = ui('mining-sync-banner');
+  if (!banner) return;
+  const progress = ui('mining-sync-progress');
+  const msg = ui('mining-sync-msg');
+  const forkAt = Number(mining.fork_resynced_at || 0);
+  const forkRecent = forkAt > 0 && (Date.now() / 1000 - forkAt) < 86400;
+  if (forkRecent) {
+    banner.style.display = 'block';
+    if (progress) progress.style.display = 'none';
+    if (msg) {
+      msg.style.display = 'block';
+      msg.innerHTML = '<div style="color:#D4AF37;font-weight:600;">Resynced to the network chain after a fork</div><div style="color:#888;font-size:12px;margin-top:4px;">Local tip was on a private branch; rolled back to the seed and catching up.</div>';
     }
+  } else if (running && (mining.state === 'isolated' || mining.isolated)) {
+    banner.style.display = 'block';
+    if (progress) progress.style.display = 'none';
+    if (msg) {
+      msg.style.display = 'block';
+      msg.innerHTML = '<div style="color:#f87171;font-weight:600;">Isolated — not mining</div><div style="color:#888;font-size:12px;margin-top:4px;">No live seed connection, or local tip is ahead of the seed on a different chain. Mining paused; resyncing to the seed.</div>';
+    }
+  } else if (running && mining.state === 'syncing' && d.network_height) {
+    showMinerSyncBanner(d.height || 0, d.network_height);
+  } else {
+    banner.style.display = 'none';
   }
 }
 
@@ -1208,22 +1241,23 @@ function saveConfig() {
     window.updater.setAutomatic(!!auto.checked).then(function () { refreshUpdateStatus(); });
   }
   try {
-    localStorage.setItem('gog_cfg_url', document.getElementById('cfg-url').value || '');
-    localStorage.setItem('gog_cfg_datadir', document.getElementById('cfg-datadir').value || '');
-    localStorage.setItem('gog_cfg_bootstrap', document.getElementById('cfg-bootstrap').value || '');
-    localStorage.setItem('gog_cfg_validator', document.getElementById('cfg-validator').value || '');
+    localStorage.setItem('gog_cfg_url', (ui('cfg-url') || {}).value || '');
+    localStorage.setItem('gog_cfg_datadir', (ui('cfg-datadir') || {}).value || '');
+    localStorage.setItem('gog_cfg_bootstrap', (ui('cfg-bootstrap') || {}).value || '');
+    localStorage.setItem('gog_cfg_validator', (ui('cfg-validator') || {}).value || '');
   } catch (_) {}
   addLog('Configuration saved.', 'success');
 }
 
 function resetConfig() {
-  document.getElementById('cfg-url').value = 'https://goldminequant.org';
-  document.getElementById('cfg-port').value = '8080';
-  document.getElementById('cfg-peers').value = '8333';
-  document.getElementById('cfg-datadir').value = '';
-  document.getElementById('cfg-bootstrap').value = 'goldminequant.org:8333\n87.255.81.125:8333';
-  document.getElementById('cfg-validator').value = '';
-  document.getElementById('cfg-stake').value = '10000';
+  const setVal = function (id, v) { const n = ui(id); if (n) n.value = v; };
+  setVal('cfg-url', 'https://goldminequant.org');
+  setVal('cfg-port', '8080');
+  setVal('cfg-peers', '8333');
+  setVal('cfg-datadir', '');
+  setVal('cfg-bootstrap', 'goldminequant.org:8333\n87.255.81.125:8333');
+  setVal('cfg-validator', '');
+  setVal('cfg-stake', '10000');
   const auto = document.getElementById('cfg-auto-update');
   if (auto) auto.checked = true;
   if (window.updater && window.updater.setAutomatic) window.updater.setAutomatic(true);
@@ -1233,11 +1267,11 @@ function resetConfig() {
 async function loadSysinfo() {
   const info = await window.node?.getSysinfo();
   if (!info) return;
-  document.getElementById('sys-platform').textContent = info.platform;
-  document.getElementById('sys-arch').textContent = info.arch;
-  document.getElementById('sys-cpus').textContent = info.cpus;
-  document.getElementById('sys-ram').textContent = (info.totalMem / 1e9).toFixed(1) + ' GB';
-  document.getElementById('sys-free').textContent = (info.freeMem / 1e9).toFixed(1) + ' GB';
+  uiText('sys-platform', info.platform);
+  uiText('sys-arch', info.arch);
+  uiText('sys-cpus', info.cpus);
+  uiText('sys-ram', (info.totalMem / 1e9).toFixed(1) + ' GB');
+  uiText('sys-free', (info.freeMem / 1e9).toFixed(1) + ' GB');
   const av = document.getElementById('sys-app-version');
   if (av) av.textContent = info.appVersion || (info.version || '—');
 }
@@ -1880,7 +1914,8 @@ async function setupLogin() {
 }
 
 function setupSkip() {
-  document.getElementById('setup-overlay').style.display = 'none';
+  const overlaySkip = ui('setup-overlay');
+  if (overlaySkip) overlaySkip.style.display = 'none';
 }
 
 function switchAccount() {
@@ -1909,9 +1944,9 @@ let minerBlocksFound = 0;
 let minerGoGXEarned = 0;
 
 async function startMiner() {
-  const address = document.getElementById('miner-address').value.trim();
+  const address = ((ui('miner-address') || {}).value || '').trim();
   if (!address) { addMinerLog('⚠️ Enter your GoGX address first'); return; }
-  const mineToggle = document.getElementById('mine-on-node');
+  const mineToggle = ui('mine-on-node');
   if (mineToggle) mineToggle.checked = true;
   localStorage.setItem('gog_address', address);
   addMinerLog('⛏️ Starting full node with --mine --reward-address ' + address.slice(0, 14) + '...');
@@ -1921,11 +1956,18 @@ async function startMiner() {
     return;
   }
   minerRunning = true;
-  document.getElementById('miner-stat-status').textContent = 'Starting';
-  document.getElementById('miner-stat-status').style.color = '#D4AF37';
-  document.getElementById('btn-start-miner').disabled = true;
-  document.getElementById('btn-stop-miner').disabled = false;
-  document.getElementById('btn-stop-miner').style.color = '#fff';
+  const mStatus = ui('miner-stat-status');
+  if (mStatus) {
+    mStatus.textContent = 'Starting';
+    mStatus.style.color = '#D4AF37';
+  }
+  const btnStart = ui('btn-start-miner');
+  const btnStop = ui('btn-stop-miner');
+  if (btnStart) btnStart.disabled = true;
+  if (btnStop) {
+    btnStop.disabled = false;
+    btnStop.style.color = '#fff';
+  }
 }
 
 async function stopMiner() {
@@ -1938,11 +1980,18 @@ async function stopMiner() {
     return;
   }
   minerRunning = false;
-  document.getElementById('miner-stat-status').textContent = 'Stopped';
-  document.getElementById('miner-stat-status').style.color = '#555';
-  document.getElementById('btn-start-miner').disabled = false;
-  document.getElementById('btn-stop-miner').disabled = true;
-  document.getElementById('btn-stop-miner').style.color = '#666';
+  const mStatus = ui('miner-stat-status');
+  if (mStatus) {
+    mStatus.textContent = 'Stopped';
+    mStatus.style.color = '#555';
+  }
+  const btnStart = ui('btn-start-miner');
+  const btnStop = ui('btn-stop-miner');
+  if (btnStart) btnStart.disabled = false;
+  if (btnStop) {
+    btnStop.disabled = true;
+    btnStop.style.color = '#666';
+  }
 }
 
 function addMinerLog(line) {
@@ -1959,11 +2008,18 @@ function addMinerLog(line) {
 }
 
 function showMinerSyncBanner(current, total) {
-  const banner = document.getElementById('mining-sync-banner');
-  const bar = document.getElementById('mining-sync-bar');
-  const text = document.getElementById('mining-sync-text');
-  if (!banner) return;
+  const banner = ui('mining-sync-banner');
+  const bar = ui('mining-sync-bar');
+  const text = ui('mining-sync-text');
+  if (!banner || !bar || !text) return;
+  const progress = ui('mining-sync-progress');
+  const msg = ui('mining-sync-msg');
   banner.style.display = 'block';
+  if (progress) progress.style.display = 'block';
+  if (msg) {
+    msg.style.display = 'none';
+    msg.innerHTML = '';
+  }
   const pct = total > 0 ? Math.min(100, (current / total * 100)).toFixed(1) : 0;
   bar.style.width = pct + '%';
   text.textContent = current.toLocaleString() + ' / ' + total.toLocaleString() + ' blocks (' + pct + '%)';
@@ -1987,10 +2043,15 @@ if (preloadOk && window.miner && window.miner.onLog) {
   window.miner.onLog((msg) => addMinerLog(msg.line));
   window.miner.onStopped((msg) => {
     minerRunning = false;
-    document.getElementById('miner-stat-status').textContent = 'Stopped';
-    document.getElementById('miner-stat-status').style.color = '#555';
-    document.getElementById('btn-start-miner').disabled = false;
-    document.getElementById('btn-stop-miner').disabled = true;
+    const mStatus = ui('miner-stat-status');
+    if (mStatus) {
+      mStatus.textContent = 'Stopped';
+      mStatus.style.color = '#555';
+    }
+    const btnStart = ui('btn-start-miner');
+    const btnStop = ui('btn-stop-miner');
+    if (btnStart) btnStart.disabled = false;
+    if (btnStop) btnStop.disabled = true;
     addMinerLog('⚠️ Miner process exited (code ' + msg.code + ')');
   });
 }
@@ -2048,10 +2109,14 @@ window.addEventListener('DOMContentLoaded', () => {
     const d = localStorage.getItem('gog_cfg_datadir');
     const b = localStorage.getItem('gog_cfg_bootstrap');
     const v = localStorage.getItem('gog_cfg_validator');
-    if (u) document.getElementById('cfg-url').value = u;
-    if (d != null) document.getElementById('cfg-datadir').value = d;
-    if (b) document.getElementById('cfg-bootstrap').value = b;
-    if (v != null) document.getElementById('cfg-validator').value = v;
+    const urlEl = ui('cfg-url');
+    const dirEl = ui('cfg-datadir');
+    const bootEl = ui('cfg-bootstrap');
+    const valEl = ui('cfg-validator');
+    if (u && urlEl) urlEl.value = u;
+    if (d != null && dirEl) dirEl.value = d;
+    if (b && bootEl) bootEl.value = b;
+    if (v != null && valEl) valEl.value = v;
   } catch (_) {}
   if (typeof loadSysinfo === 'function') loadSysinfo();
   else if (window.node && window.node.getSysinfo) {

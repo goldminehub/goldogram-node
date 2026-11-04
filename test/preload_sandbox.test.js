@@ -36,3 +36,22 @@ test('boot_guard paints a readable error when the desktop bridge is missing', ()
   assert.match(src, /window\.miner/);
   assert.match(src, /window\.gogAddress/);
 });
+
+test('packaged smoke runs 30s sidebar view cycle and asserts zero unhandled rejections', () => {
+  const main = fs.readFileSync(path.join(ROOT, 'src', 'main.js'), 'utf8');
+  assert.match(main, /30000/);
+  assert.match(main, /unhandledrejection/);
+  assert.match(main, /showPanel\(/);
+  assert.match(main, /'dashboard'/);
+  assert.match(main, /'logs'/);
+  assert.match(main, /'peers'/);
+  assert.match(main, /'mining'/);
+  assert.match(main, /'validator'/);
+  assert.match(main, /'info'/);
+  assert.match(main, /'config'/);
+  assert.match(main, /window\.__smokeRejections/);
+  const wrapper = fs.readFileSync(path.join(ROOT, 'scripts', 'packaged_smoke.js'), 'utf8');
+  assert.match(wrapper, /30s/);
+  const html = fs.readFileSync(path.join(ROOT, 'renderer', 'index.html'), 'utf8');
+  assert.match(html, /if \(!banner \|\| !bar \|\| !text\) return/);
+});

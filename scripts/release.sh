@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build Windows + macOS arm64, run the packaged 20s smoke, publish only if it passes.
+# Build Windows + macOS arm64, run the packaged 30s view-cycle smoke, publish only if it passes.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
@@ -34,9 +34,8 @@ echo "[release] Windows SHA256 ${WIN_SHA}"
 echo "[release] macOS arm64 SHA256 ${MAC_SHA}"
 
 NOTES="$(cat <<EOF
-Hotfix: 1.2.46 crashed on Windows launch because sandboxed preload required @noble/hashes (window.miner undefined at renderer/index.html:1973).
+Hotfix: 1.2.48 showed "Something went wrong" on Windows because fetchStatus called showMinerSyncBanner after isolated/fork paints replaced #mining-sync-banner innerHTML, destroying #mining-sync-bar. Periodic status polling now returns when banner parts are missing and never rejects on UI state.
 
-1.2.47 keeps preload electron-only, validates GoGX addresses in the main process via IPC, and shows a readable error if the desktop bridge is missing.
 
 | Artifact | SHA256 |
 | --- | --- |

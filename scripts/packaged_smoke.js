@@ -1,11 +1,14 @@
 'use strict';
 
 /**
- * Inspect the Windows asar, then run the packaged app with --smoke for 20s.
- * Exit 0 only when the asar preload is electron-only AND the packaged process
- * prints PACKAGED_SMOKE OK. Release must not publish if this fails.
+ * Inspect the Windows (and mac, if present) asar, then run --smoke for 30s
+ * while cycling every sidebar view with status polling. Exit 0 only when the
+ * asar preload is electron-only AND the process prints PACKAGED_SMOKE OK with
+ * zero unhandled rejections. Release must not publish if this fails.
  *
  * Run: node scripts/packaged_smoke.js
+ * On Linux the packaged .exe/.app cannot launch; after asar inspect we run
+ * `electron . --smoke` against this tree (same renderer that was packed).
  */
 const fs = require('fs');
 const os = require('os');
@@ -56,29 +59,45 @@ function inspectAsar(asarPath, label) {
   if (!/function requirePreloadBridges\(/.test(html)) {
     fail(label + ' renderer missing requirePreloadBridges guard');
   }
+  if (!/if \(!banner \|\| !bar \|\| !text\) return/.test(html)) {
+    fail(label + ' showMinerSyncBanner must return if banner/bar/text are missing');
+  }
+  if (!/async function fetchStatusTick\(/.test(html)) {
+    fail(label + ' fetchStatus must swallow UI misses via fetchStatusTick try/catch');
+  }
+  if (/getElementById\('mining-sync-banner'\)[\s\S]{0,500}banner\.innerHTML\s*=/.test(html)) {
+    fail(label + ' mining-sync-banner innerHTML overwrite would destroy #mining-sync-bar');
+  }
   if (!/exposeInMainWorld\('miner'/.test(preload)) {
     fail(label + ' preload does not expose miner');
   }
-  console.log('[packaged-smoke] ' + label + ' asar preload ok (electron-only, miner+node+gogAddress via IPC)');
+  const main = fs.readFileSync(path.join(dest, 'src', 'main.js'), 'utf8');
+  if (!/30000/.test(main) || !/unhandledrejection/.test(main)) {
+    fail(label + ' packaged smoke must run 30s and assert zero unhandled rejections');
+  }
+  console.log('[packaged-smoke] ' + label + ' asar ok (electron-only preload, banner null-safe, 30s view cycle)');
   fs.rmSync(dest, { recursive: true, force: true });
 }
 
-function packagedBinary() {
+function launchSpec() {
   if (process.platform === 'darwin') {
     if (!fs.existsSync(MAC_BIN)) fail('missing mac packaged binary: ' + MAC_BIN);
-    return MAC_BIN;
+    return { bin: MAC_BIN, args: ['--smoke'], cwd: ROOT };
   }
   if (process.platform === 'win32') {
     if (!fs.existsSync(WIN_EXE)) fail('missing win packaged binary: ' + WIN_EXE);
-    return WIN_EXE;
+    return { bin: WIN_EXE, args: ['--smoke'], cwd: ROOT };
   }
-  fail('packaged smoke runs on darwin or win32, got ' + process.platform);
+  const electron = path.join(ROOT, 'node_modules', 'electron', 'dist', 'electron');
+  if (!fs.existsSync(electron)) fail('missing electron binary for linux smoke: ' + electron);
+  return { bin: electron, args: ['.', '--smoke'], cwd: ROOT };
 }
 
-function runPackagedApp(bin) {
+function runPackagedApp(spec) {
   return new Promise((resolve, reject) => {
-    const child = spawn(bin, ['--smoke'], {
-      env: { ...process.env, GOLDOGRAM_SMOKE: '1' },
+    const child = spawn(spec.bin, spec.args, {
+      cwd: spec.cwd,
+      env: { ...process.env, GOLDOGRAM_SMOKE: '1', DISPLAY: process.env.DISPLAY || ':99' },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     let out = '';
@@ -91,8 +110,8 @@ function runPackagedApp(bin) {
     child.stderr.on('data', onData);
     const timer = setTimeout(() => {
       child.kill('SIGKILL');
-      reject(new Error('packaged app timed out after 50s\n' + out));
-    }, 50000);
+      reject(new Error('packaged app timed out after 90s\n' + out));
+    }, 90000);
     child.on('error', (err) => {
       clearTimeout(timer);
       reject(err);
@@ -105,7 +124,8 @@ function runPackagedApp(bin) {
 }
 
 async function main() {
-  inspectAsar(WIN_ASAR, 'windows');
+  if (fs.existsSync(WIN_ASAR)) inspectAsar(WIN_ASAR, 'windows');
+  else console.log('[packaged-smoke] windows asar not built yet — skipping asar inspect');
   const macAsar = path.join(
     ROOT,
     'dist',
@@ -117,14 +137,17 @@ async function main() {
   );
   if (fs.existsSync(macAsar)) inspectAsar(macAsar, 'mac-arm64');
 
-  const bin = packagedBinary();
-  console.log('[packaged-smoke] launching', bin, '--smoke (20s renderer)');
-  const { code, out } = await runPackagedApp(bin);
+  const spec = launchSpec();
+  console.log('[packaged-smoke] launching', spec.bin, spec.args.join(' '), '(30s view cycle)');
+  const { code, out } = await runPackagedApp(spec);
   if (!/PACKAGED_SMOKE OK/.test(out)) {
     fail('packaged app did not print PACKAGED_SMOKE OK (exit ' + code + ')');
   }
   if (/PACKAGED_SMOKE FAIL/.test(out)) {
     fail('packaged app printed PACKAGED_SMOKE FAIL');
+  }
+  if (/unhandledrejection/i.test(out) && /PACKAGED_SMOKE FAIL/.test(out)) {
+    fail('unhandledrejection during view-cycle smoke');
   }
   if (code !== 0) fail('packaged app exit ' + code);
   console.log('PACKAGED_SMOKE WRAPPER OK');

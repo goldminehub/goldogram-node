@@ -301,7 +301,7 @@ app.whenReady().then(async () => {
         console.error('PACKAGED_SMOKE FAIL: timed out before smoke finished');
         app.exit(1);
       }
-    }, 45000).unref();
+    }, 90000).unref();
     createWindow();
     return;
   }
@@ -476,7 +476,37 @@ ipcMain.handle('stop-miner', () => {
   return { ok: true };
 });
 
+let smokeStatusTick = 0;
 ipcMain.handle('get-status', async () => {
+  if (SMOKE) {
+    smokeStatusTick += 1;
+    const phase = smokeStatusTick % 4;
+    const isolated = phase === 1;
+    const fork = phase === 2;
+    const syncing = phase === 3;
+    return {
+      ok: true,
+      running: true,
+      data: {
+        height: 1000 + smokeStatusTick,
+        network_height: 5000,
+        peers: 3,
+        difficulty: 1,
+        sync_state: syncing || isolated ? 'syncing' : 'synced',
+        behind_by: 4000,
+        last_block_time: Math.floor(Date.now() / 1000) - 12,
+        mining: {
+          state: isolated ? 'isolated' : (syncing ? 'syncing' : 'idle'),
+          isolated: isolated,
+          fork_resynced_at: fork ? Math.floor(Date.now() / 1000) : 0,
+          hashrate: 0,
+          blocks_found: 0,
+          mining_height: 1000 + smokeStatusTick,
+        },
+        peer_list: [],
+      },
+    };
+  }
   const running = !!(nodeProcess && nodeProcess.pid);
   if (!running) return { ok: false, running: false };
   try {
@@ -697,11 +727,32 @@ ipcMain.handle('gog-address-extract', (_event, raw) => gogAddress.extractGogAddr
 
 async function runPackagedSmoke(win) {
   const started = Date.now();
-  const deadline = started + 20000;
+  const overlayDeadline = started + 8000;
   let snapshot = null;
+
+  function rendererErrors(fatalText) {
+    const uncaught = smokeConsoleErrors.filter((m) =>
+      /Uncaught|TypeError|ReferenceError|is not defined|preload-error/i.test(m));
+    if (uncaught.length) {
+      smokeFinished = true;
+      console.error('PACKAGED_SMOKE FAIL: renderer error');
+      console.error(uncaught.join('\n'));
+      app.exit(1);
+      return true;
+    }
+    if (fatalText && /TypeError|ReferenceError|bridge missing|unhandledrejection/i.test(fatalText)) {
+      smokeFinished = true;
+      console.error('PACKAGED_SMOKE FAIL: fatal overlay');
+      console.error(fatalText);
+      app.exit(1);
+      return true;
+    }
+    return false;
+  }
+
   try {
-    while (Date.now() < deadline) {
-      await sleep(500);
+    while (Date.now() < overlayDeadline) {
+      await sleep(400);
       snapshot = await win.webContents.executeJavaScript(`({
         miner: typeof window.miner,
         node: typeof window.node,
@@ -714,32 +765,12 @@ async function runPackagedSmoke(win) {
         addressText: (document.getElementById('setup-step-address') && document.getElementById('setup-step-address').textContent) || '',
         fatalDisplay: (document.getElementById('fatal-error-overlay') || {}).style.display || 'none',
         fatalText: (document.getElementById('fatal-error-text') || {}).textContent || '',
+        banner: !!(document.getElementById('mining-sync-banner')),
+        bar: !!(document.getElementById('mining-sync-bar')),
+        text: !!(document.getElementById('mining-sync-text')),
       })`);
-      const uncaught = smokeConsoleErrors.filter((m) =>
-        /Uncaught|TypeError|ReferenceError|is not defined|preload-error/i.test(m));
-      if (uncaught.length) {
-        smokeFinished = true;
-        console.error('PACKAGED_SMOKE FAIL: renderer error');
-        console.error(uncaught.join('\n'));
-        app.exit(1);
-        return;
-      }
-      if (snapshot && /TypeError|ReferenceError|bridge missing/i.test(snapshot.fatalText || '')) {
-        smokeFinished = true;
-        console.error('PACKAGED_SMOKE FAIL: fatal overlay');
-        console.error(snapshot.fatalText);
-        app.exit(1);
-        return;
-      }
-    }
-    const uncaught = smokeConsoleErrors.filter((m) =>
-      /Uncaught|TypeError|ReferenceError|is not defined|preload-error/i.test(m));
-    if (uncaught.length) {
-      smokeFinished = true;
-      console.error('PACKAGED_SMOKE FAIL: renderer error');
-      console.error(uncaught.join('\n'));
-      app.exit(1);
-      return;
+      if (rendererErrors(snapshot && snapshot.fatalText)) return;
+      if (snapshot && snapshot.miner === 'object' && snapshot.addressStep) break;
     }
     if (!snapshot) {
       smokeFinished = true;
@@ -771,6 +802,81 @@ async function runPackagedSmoke(win) {
       app.exit(1);
       return;
     }
+
+    // Status polling while the address overlay is up (banner children still in DOM).
+    await win.webContents.executeJavaScript(`
+      (function () {
+        window.__smokeRejections = [];
+        window.addEventListener('unhandledrejection', function (ev) {
+          try { ev.preventDefault(); } catch (_) {}
+          window.__smokeRejections.push(String((ev.reason && ev.reason.message) || ev.reason || ''));
+        });
+        running = true;
+        if (typeof statusInterval !== 'undefined' && statusInterval) clearInterval(statusInterval);
+        statusInterval = setInterval(fetchStatus, 1000);
+        fetchStatus();
+        return true;
+      })()
+    `);
+
+    const views = ['dashboard', 'logs', 'peers', 'mining', 'validator', 'info', 'config'];
+    const seen = [];
+    const cycleUntil = Date.now() + 30000;
+    let i = 0;
+    let last = null;
+    while (Date.now() < cycleUntil) {
+      const name = views[i % views.length];
+      // First ~4s: keep the address overlay; then hide it and walk the sidebar.
+      const hideOverlay = i >= 3;
+      last = await win.webContents.executeJavaScript(`
+        (function () {
+          const name = ${JSON.stringify(name)};
+          const hideOverlay = ${hideOverlay ? 'true' : 'false'};
+          if (hideOverlay) {
+            const overlay = document.getElementById('setup-overlay');
+            if (overlay) overlay.style.display = 'none';
+          }
+          if (typeof showPanel === 'function') showPanel(name);
+          return {
+            panel: (document.querySelector('.panel.active') || {}).id || '',
+            overlayDisplay: (document.getElementById('setup-overlay') || {}).style.display || '',
+            rejections: (window.__smokeRejections || []).slice(),
+            fatalDisplay: (document.getElementById('fatal-error-overlay') || {}).style.display || 'none',
+            fatalText: (document.getElementById('fatal-error-text') || {}).textContent || '',
+            banner: !!(document.getElementById('mining-sync-banner')),
+            bar: !!(document.getElementById('mining-sync-bar')),
+            text: !!(document.getElementById('mining-sync-text')),
+            ticks: typeof smokeStatusTick === 'number' ? smokeStatusTick : null,
+          };
+        })()
+      `);
+      seen.push(name);
+      if (rendererErrors(last && last.fatalText)) return;
+      if (last && last.rejections && last.rejections.length) {
+        smokeFinished = true;
+        console.error('PACKAGED_SMOKE FAIL: unhandledrejection');
+        console.error(last.rejections.join('\n'));
+        app.exit(1);
+        return;
+      }
+      i += 1;
+      await sleep(1200);
+    }
+
+    const missingViews = views.filter((v) => !seen.includes(v));
+    if (missingViews.length) {
+      smokeFinished = true;
+      console.error('PACKAGED_SMOKE FAIL: did not cycle views', missingViews.join(','));
+      app.exit(1);
+      return;
+    }
+    if (!last || !last.bar || !last.text || !last.banner) {
+      smokeFinished = true;
+      console.error('PACKAGED_SMOKE FAIL: mining sync banner children missing after polling', JSON.stringify(last));
+      app.exit(1);
+      return;
+    }
+
     smokeFinished = true;
     console.log('PACKAGED_SMOKE OK');
     console.log(JSON.stringify({
@@ -779,6 +885,12 @@ async function runPackagedSmoke(win) {
       miner: snapshot.miner,
       overlayDisplay: snapshot.overlayDisplay,
       addressStep: snapshot.addressStep,
+      views: seen,
+      uniqueViews: views.slice(),
+      rejections: (last && last.rejections) || [],
+      banner: last && last.banner,
+      bar: last && last.bar,
+      text: last && last.text,
       consoleErrors: smokeConsoleErrors.length,
     }));
     app.exit(0);

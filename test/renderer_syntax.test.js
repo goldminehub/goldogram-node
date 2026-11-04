@@ -67,3 +67,17 @@ test('login UI has eye toggles type=button and fatal overlay', () => {
     assert.match(tag, /\btype="button"/);
   }
 });
+
+test('periodic status paint is null-safe (1.2.49 banner crash)', () => {
+  const html = fs.readFileSync(HTML, 'utf8');
+  assert.match(html, /function ui\(id\)/);
+  assert.match(html, /async function fetchStatus\(\) \{\s*try/);
+  assert.match(html, /async function fetchStatusTick\(/);
+  assert.match(html, /if \(!banner \|\| !bar \|\| !text\) return/);
+  assert.match(html, /id="mining-sync-msg"/);
+  assert.equal(
+    /getElementById\('mining-sync-banner'\)[\s\S]{0,500}banner\.innerHTML\s*=/.test(html),
+    false,
+    'must not replace mining-sync-banner innerHTML (destroys #mining-sync-bar)',
+  );
+});
