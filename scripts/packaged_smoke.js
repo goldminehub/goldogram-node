@@ -79,8 +79,8 @@ function inspectAsar(asarPath, label) {
     fail(label + ' packaged main must launch the core through coreLaunchEnv');
   }
   const args = fs.readFileSync(path.join(dest, 'src', 'node_args.js'), 'utf8');
-  if (!/delete env\.GOLDOGRAM_MINT_TEST_JWT/.test(args)) {
-    fail(label + ' packaged node_args must delete GOLDOGRAM_MINT_TEST_JWT');
+  if (!/env\.GOLDOGRAM_MINT_TEST_JWT = '0'/.test(args)) {
+    fail(label + ' packaged node_args must set GOLDOGRAM_MINT_TEST_JWT=0');
   }
   console.log('[packaged-smoke] ' + label + ' asar ok (electron-only preload, banner null-safe, 30s view cycle)');
   fs.rmSync(dest, { recursive: true, force: true });

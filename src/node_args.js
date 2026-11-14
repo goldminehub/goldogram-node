@@ -39,11 +39,11 @@ function appVersionEnv(version) {
 
 /**
  * Env for a desktop full node or the in-app miner.
- * Never sets GOLDOGRAM_MINT_TEST_JWT, and strips it if the parent process had it.
+ * Forces GOLDOGRAM_MINT_TEST_JWT=0 so the QA listener stays closed.
  */
 function coreLaunchEnv(base, extras) {
   const env = Object.assign({}, base || {}, extras || {});
-  delete env.GOLDOGRAM_MINT_TEST_JWT;
+  env.GOLDOGRAM_MINT_TEST_JWT = '0';
   return env;
 }
 

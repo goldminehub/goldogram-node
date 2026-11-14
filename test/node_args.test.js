@@ -62,14 +62,14 @@ test('app version env is the desktop version the Hello advertises', () => {
   assert.deepEqual(appVersionEnv('  '), {});
 });
 
-test('node and miner launch env never sets the QA mint listener', () => {
+test('node and miner launch env forces the QA mint listener off', () => {
   const env = coreLaunchEnv(
     { PATH: '/usr/bin', GOLDOGRAM_MINT_TEST_JWT: '1' },
     { SEED_NODES: '192.168.1.249:8333', GOLDOGRAM_MINT_TEST_JWT: '1', MINER_ADDRESS: 'GoX' },
   );
-  assert.equal(Object.prototype.hasOwnProperty.call(env, 'GOLDOGRAM_MINT_TEST_JWT'), false);
+  assert.equal(env.GOLDOGRAM_MINT_TEST_JWT, '0');
   assert.equal(env.PATH, '/usr/bin');
   assert.equal(env.SEED_NODES, '192.168.1.249:8333');
   assert.equal(env.MINER_ADDRESS, 'GoX');
-  assert.equal(Object.prototype.hasOwnProperty.call(coreLaunchEnv({}, {}), 'GOLDOGRAM_MINT_TEST_JWT'), false);
+  assert.equal(coreLaunchEnv({}, {}).GOLDOGRAM_MINT_TEST_JWT, '0');
 });
