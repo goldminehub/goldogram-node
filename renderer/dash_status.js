@@ -22,6 +22,11 @@ function pushHashSample(buf, hs, nowMs) {
 
 function headline(state) {
   var mode = state && state.mode;
+  if (mode === 'update-required') {
+    var n = Number(state.stoppedHeight);
+    if (!isFinite(n) || n < 0) n = 0;
+    return 'Sync stopped at block ' + n + ' — update required';
+  }
   if (mode === 'syncing') return 'Syncing…';
   if (mode === 'synced-mining' || mode === 'mining') return 'Synced — mining';
   if (mode === 'synced-off') return 'Synced — mining off';

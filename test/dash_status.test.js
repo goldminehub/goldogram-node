@@ -14,6 +14,10 @@ const {
 
 test('headline names syncing, mining, idle, and stopped', () => {
   assert.equal(headline({ mode: 'syncing', progress: 87.2 }), 'Syncing…');
+  assert.equal(
+    headline({ mode: 'update-required', stoppedHeight: 1845956 }),
+    'Sync stopped at block 1845956 — update required',
+  );
   assert.equal(headline({ mode: 'synced-mining', hashrateText: '71.30 kH/s' }), 'Synced — mining');
   assert.equal(headline({ mode: 'synced-off' }), 'Synced — mining off');
   assert.equal(headline({ mode: 'stopped', reason: 'Node stopped' }), 'Node stopped');

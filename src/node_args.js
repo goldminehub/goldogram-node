@@ -37,4 +37,14 @@ function appVersionEnv(version) {
   return { GOGOGRAM_APP_VERSION: v };
 }
 
-module.exports = { buildNodeArgs, appVersionEnv };
+/**
+ * Env for a desktop full node or the in-app miner.
+ * Never sets GOLDOGRAM_MINT_TEST_JWT, and strips it if the parent process had it.
+ */
+function coreLaunchEnv(base, extras) {
+  const env = Object.assign({}, base || {}, extras || {});
+  delete env.GOLDOGRAM_MINT_TEST_JWT;
+  return env;
+}
+
+module.exports = { buildNodeArgs, appVersionEnv, coreLaunchEnv };

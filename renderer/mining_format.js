@@ -50,6 +50,18 @@ function dashboardVisualState(input) {
   if (!childRunning) {
     return { mode: 'stopped', reason: 'Node stopped', progress: 0, hashrateText: '' };
   }
+  if ((input && input.syncState) === 'update_required') {
+    const total = Number(input && input.networkHeight) || 0;
+    const cur = Number(input && input.height) || 0;
+    const progress = total > 0 ? Math.min(100, (cur / total) * 100) : 0;
+    return {
+      mode: 'update-required',
+      reason: '',
+      progress,
+      hashrateText: '',
+      stoppedHeight: Number(input.syncStoppedHeight != null ? input.syncStoppedHeight : input.height) || 0,
+    };
+  }
   const syncing = (input && input.syncState) === 'syncing' || mining.state === 'syncing';
   if (syncing) {
     const total = Number(input && input.networkHeight) || 0;

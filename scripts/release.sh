@@ -34,7 +34,7 @@ echo "[release] Windows SHA256 ${WIN_SHA}"
 echo "[release] macOS arm64 SHA256 ${MAC_SHA}"
 
 NOTES="$(cat <<EOF
-Hotfix: 1.2.48 showed "Something went wrong" on Windows because fetchStatus called showMinerSyncBanner after isolated/fork paints replaced #mining-sync-banner innerHTML, destroying #mining-sync-bar. Periodic status polling now returns when banner parts are missing and never rejects on UI state.
+Fixes the sync stop at 1,845,956. Nodes resume automatically after update. The bundled core accepts the known parent break at block 1,845,957 and keeps syncing through a depth-1 race at the tip.
 
 
 | Artifact | SHA256 |

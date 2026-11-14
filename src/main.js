@@ -3,7 +3,7 @@ const { autoUpdater } = require('electron-updater');
 const { spawn, spawnSync } = require('child_process');
 const path = require('path');
 const os = require('os');
-const { buildNodeArgs, appVersionEnv } = require('./node_args');
+const { buildNodeArgs, appVersionEnv, coreLaunchEnv } = require('./node_args');
 const {
   defaultKeystorePath,
   listKeystoreAddresses,
@@ -62,9 +62,9 @@ const DEFAULT_API_NODES = 'https://goldminequant.org,http://87.255.81.125:8080';
 function getBinaryPath(name) {
   const isWin = process.platform === 'win32';
   const binaryName = isWin ? `${name}.exe` : name;
-  return app.isPackaged
-    ? path.join(process.resourcesPath, binaryName)
-    : path.join(__dirname, '../bin', binaryName);
+  if (app.isPackaged) return path.join(process.resourcesPath, binaryName);
+  const folder = isWin ? 'win' : (process.platform === 'darwin' ? 'mac' : 'linux');
+  return path.join(__dirname, '../bin', folder, binaryName);
 }
 
 function dashLog(line) {
@@ -395,7 +395,7 @@ async function startFullNode(opts = {}) {
   }
   let child;
   try {
-    child = spawn(binaryPath, args, { env });
+    child = spawn(binaryPath, args, { env: coreLaunchEnv(env) });
   } catch (e) {
     const error = 'spawn failed: ' + (e && e.message ? e.message : String(e));
     emitNodeStopped(1, error);
@@ -452,7 +452,7 @@ ipcMain.handle('start-miner', async (event, { address, apiNode }) => {
   await killGoldogramOrphans();
   const binaryPath = getBinaryPath('goldogram-core');
   minerProcess = spawn(binaryPath, ['node', '--mine'], {
-    env: { ...process.env, MINER_ADDRESS: address, API_NODE: apiNode || 'http://goldminequant.org', SEED_NODES: DEFAULT_SEEDS }
+    env: coreLaunchEnv(process.env, { MINER_ADDRESS: address, API_NODE: apiNode || 'http://goldminequant.org', SEED_NODES: DEFAULT_SEEDS })
   });
   minerProcess.stdout.on('data', (data) => {
     data.toString().split('\n').filter(Boolean).forEach(line => {

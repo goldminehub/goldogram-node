@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { buildNodeArgs, appVersionEnv } = require('../src/node_args');
+const { buildNodeArgs, appVersionEnv, coreLaunchEnv } = require('../src/node_args');
 
 test('mine-on-this-node argv is --fullnode then --mine (never miner-only)', () => {
   const args = buildNodeArgs({
@@ -60,4 +60,16 @@ test('keystore + address adds --validator without --stake', () => {
 test('app version env is the desktop version the Hello advertises', () => {
   assert.deepEqual(appVersionEnv('1.2.35'), { GOGOGRAM_APP_VERSION: '1.2.35' });
   assert.deepEqual(appVersionEnv('  '), {});
+});
+
+test('node and miner launch env never sets the QA mint listener', () => {
+  const env = coreLaunchEnv(
+    { PATH: '/usr/bin', GOLDOGRAM_MINT_TEST_JWT: '1' },
+    { SEED_NODES: '192.168.1.249:8333', GOLDOGRAM_MINT_TEST_JWT: '1', MINER_ADDRESS: 'GoX' },
+  );
+  assert.equal(Object.prototype.hasOwnProperty.call(env, 'GOLDOGRAM_MINT_TEST_JWT'), false);
+  assert.equal(env.PATH, '/usr/bin');
+  assert.equal(env.SEED_NODES, '192.168.1.249:8333');
+  assert.equal(env.MINER_ADDRESS, 'GoX');
+  assert.equal(Object.prototype.hasOwnProperty.call(coreLaunchEnv({}, {}), 'GOLDOGRAM_MINT_TEST_JWT'), false);
 });

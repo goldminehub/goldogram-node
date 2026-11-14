@@ -75,8 +75,21 @@ function inspectAsar(asarPath, label) {
   if (!/30000/.test(main) || !/unhandledrejection/.test(main)) {
     fail(label + ' packaged smoke must run 30s and assert zero unhandled rejections');
   }
+  if (!/coreLaunchEnv/.test(main)) {
+    fail(label + ' packaged main must launch the core through coreLaunchEnv');
+  }
+  const args = fs.readFileSync(path.join(dest, 'src', 'node_args.js'), 'utf8');
+  if (!/delete env\.GOLDOGRAM_MINT_TEST_JWT/.test(args)) {
+    fail(label + ' packaged node_args must delete GOLDOGRAM_MINT_TEST_JWT');
+  }
   console.log('[packaged-smoke] ' + label + ' asar ok (electron-only preload, banner null-safe, 30s view cycle)');
   fs.rmSync(dest, { recursive: true, force: true });
+}
+
+function mintPortCount() {
+  const r = spawnSync('ss', ['-ltn'], { encoding: 'utf8' });
+  const blob = (r.stdout || '') + '\n' + (r.stderr || '');
+  return (blob.match(/:8099\b/g) || []).length;
 }
 
 function launchSpec() {
@@ -137,6 +150,7 @@ async function main() {
   );
   if (fs.existsSync(macAsar)) inspectAsar(macAsar, 'mac-arm64');
 
+  const mintBefore = mintPortCount();
   const spec = launchSpec();
   console.log('[packaged-smoke] launching', spec.bin, spec.args.join(' '), '(30s view cycle)');
   const { code, out } = await runPackagedApp(spec);
@@ -150,6 +164,11 @@ async function main() {
     fail('unhandledrejection during view-cycle smoke');
   }
   if (code !== 0) fail('packaged app exit ' + code);
+  const mintAfter = mintPortCount();
+  if (mintAfter > mintBefore) {
+    fail('packaged node opened 8099 (listeners ' + mintBefore + ' -> ' + mintAfter + ')');
+  }
+  console.log('[packaged-smoke] 8099 listeners unchanged (' + mintAfter + ')');
   console.log('PACKAGED_SMOKE WRAPPER OK');
 }
 

@@ -45,6 +45,16 @@ test('dashboard visual follows sync, mine, and a stopped process', () => {
   });
   assert.equal(sync.mode, 'syncing');
   assert.equal(sync.progress, 25);
+  const stopped = dashboardVisualState({
+    childRunning: true,
+    syncState: 'update_required',
+    height: 1845956,
+    syncStoppedHeight: 1845956,
+    networkHeight: 1846000,
+    mining: { state: 'syncing' },
+  });
+  assert.equal(stopped.mode, 'update-required');
+  assert.equal(stopped.stoppedHeight, 1845956);
   const mining = dashboardVisualState({
     childRunning: true,
     syncState: 'synced',
