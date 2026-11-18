@@ -53,3 +53,8 @@ contextBridge.exposeInMainWorld('gogAddress', {
   extract: (raw) => invokeLogged('gog-address-extract', raw),
   INVALID: 'This is not a valid GoGX address.',
 });
+
+contextBridge.exposeInMainWorld('tools', {
+  openOfflineKeygen: () => ipcRenderer.invoke('tools:open-offline-keygen'),
+  offlineKeygenHash: () => ipcRenderer.invoke('tools:offline-keygen-hash'),
+});

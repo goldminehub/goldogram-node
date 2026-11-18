@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const { spawn, spawnSync } = require('child_process');
 const path = require('path');
@@ -293,6 +293,21 @@ function createWindow() {
     if (SMOKE) smokeConsoleErrors.push('preload-error ' + msg);
   });
 }
+
+
+ipcMain.handle('tools:open-offline-keygen', async () => {
+  const fs = require('fs');
+  const file = path.join(__dirname, '../assets/tools/goldogram-offline-keygen.html');
+  if (!fs.existsSync(file)) return { ok: false, error: 'missing' };
+  const err = await shell.openPath(file);
+  return { ok: !err, error: err || null };
+});
+ipcMain.handle('tools:offline-keygen-hash', async () => {
+  const fs = require('fs');
+  const file = path.join(__dirname, '../assets/tools/goldogram-offline-keygen.sha256');
+  if (!fs.existsSync(file)) return '';
+  return fs.readFileSync(file, 'utf8').trim();
+});
 
 app.whenReady().then(async () => {
   if (SMOKE) {
