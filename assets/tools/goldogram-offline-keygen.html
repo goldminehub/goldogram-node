@@ -48703,8 +48703,13 @@ zoo`.split("\n"));
   }
   async function drawQr(text, version2) {
     const opts = { errorCorrectionLevel: "Q" };
-    if (version2) opts.version = version2;
-    const qr = import_qrcode.default.create(text, opts);
+    let qr;
+    try {
+      if (version2) opts.version = version2;
+      qr = import_qrcode.default.create(text, opts);
+    } catch (e) {
+      qr = import_qrcode.default.create(text, { errorCorrectionLevel: "Q" });
+    }
     const size = qr.modules.size;
     const modules = [];
     for (let y = 0; y < size; y++) {
@@ -48832,7 +48837,7 @@ ${xref}
     }
     xi.fill(0);
     spendXi.fill(0);
-    const spendDraw = await drawQr(spendQr, 8);
+    const spendDraw = await drawQr(spendQr, 10);
     master.secret_key.fill(0);
     spend.secret_key.fill(0);
     return {
