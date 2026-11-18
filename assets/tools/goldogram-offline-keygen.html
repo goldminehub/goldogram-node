@@ -49020,6 +49020,21 @@ ${xref}
       });
       show("generate");
     });
+    $("[data-verify-spend]")?.addEventListener("click", async () => {
+      const err = $("[data-verify-spend-error]");
+      const out = $("[data-verify-spend-out]");
+      if (err) err.textContent = "";
+      if (out) out.textContent = "";
+      try {
+        const pass = $("[data-verify-spend-pass]")?.value || "";
+        const qr = ($("[data-verify-spend-qr]")?.value || "").trim();
+        const result = await verifySpendBackup(pass, qr);
+        if (out) out.textContent = `Spending address: ${result.spendAddress}
+Index: ${result.index}`;
+      } catch (e) {
+        if (err) err.textContent = e instanceof Error ? e.message : String(e);
+      }
+    });
     $("[data-verify]")?.addEventListener("click", async () => {
       const err = $("[data-verify-error]");
       const out = $("[data-verify-out]");
