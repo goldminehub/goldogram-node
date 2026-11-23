@@ -5,7 +5,7 @@ const path = require('path');
 const LOCK_GRACE_MS = 500;
 const CORE_NAME_WIN = 'goldogram-core.exe';
 const CORE_NAME_NIX = 'goldogram-core';
-const LISTEN_PORTS = [8333, 8335];
+const LISTEN_PORTS = [18333, 18335];
 
 function taskkillArgs(pid) {
   return ['/PID', String(pid), '/T', '/F'];
@@ -154,7 +154,7 @@ function selectNamedCoreOrphans(processes, skipPids = []) {
   });
 }
 
-/** Listeners on 8333/8335 whose image name contains "goldogram". */
+/** Listeners on 18333/18335 whose image name contains "goldogram". */
 function selectGoldogramPortOrphans(listeners, skipPids = []) {
   const skip = new Set((skipPids || []).filter(Boolean));
   return (listeners || []).filter((p) => {

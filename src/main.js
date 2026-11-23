@@ -31,6 +31,7 @@ const { createAutoUpdateController } = require('./auto_update');
 const { collectDiskStats, wipeBlocksDir, defaultDatadir } = require('./disk_stats');
 const { appendMainLog } = require('./main_log');
 const gogAddress = require('./gog_address');
+const { readSeedList } = require('./seeds');
 
 const SMOKE = process.argv.includes('--smoke') || process.env.GOLDOGRAM_SMOKE === '1';
 if (SMOKE) {
@@ -52,12 +53,13 @@ let updateController = null;
 const smokeConsoleErrors = [];
 let smokeFinished = false;
 
-// Multiple seeds: DNS name first (survives IP changes), raw IP as fallback.
-// The node also remembers good peers in peers.dat and retries them at startup,
-// so the network heals even when every seed here is unreachable.
-const DEFAULT_SEEDS = 'goldminequant.org:8333,87.255.81.125:8333';
-// Ordered API endpoints for chain sync (first healthy wins). Add api2/api3 when Phase-1 HA servers exist.
-const DEFAULT_API_NODES = 'https://goldminequant.org,http://87.255.81.125:8080';
+// Seeds come from config/seeds.txt (same file the binary reads). No built-in
+// list that names one machine twice. Port 18333 when a line omits it.
+function defaultSeedList() {
+  return readSeedList(path.join(__dirname, '..'), process.env);
+}
+// HTTP is optional. Nothing is baked in as the chain to follow.
+const DEFAULT_API_NODES = '';
 
 function getBinaryPath(name) {
   const isWin = process.platform === 'win32';
@@ -386,7 +388,7 @@ async function startFullNode(opts = {}) {
   }
   const seedList = seeds && String(seeds).trim()
     ? String(seeds).split(/[\n,]+/).map((s) => s.trim()).filter(Boolean).join(',')
-    : DEFAULT_SEEDS;
+    : defaultSeedList();
   const env = {
     ...process.env,
     ...appVersionEnv(app.getVersion()),
@@ -467,7 +469,7 @@ ipcMain.handle('start-miner', async (event, { address, apiNode }) => {
   await killGoldogramOrphans();
   const binaryPath = getBinaryPath('goldogram-core');
   minerProcess = spawn(binaryPath, ['node', '--mine'], {
-    env: coreLaunchEnv(process.env, { MINER_ADDRESS: address, API_NODE: apiNode || 'http://goldminequant.org', SEED_NODES: DEFAULT_SEEDS })
+    env: coreLaunchEnv(process.env, { MINER_ADDRESS: address, API_NODE: apiNode || '', SEED_NODES: defaultSeedList() })
   });
   minerProcess.stdout.on('data', (data) => {
     data.toString().split('\n').filter(Boolean).forEach(line => {
@@ -719,7 +721,7 @@ ipcMain.handle('resync-from-checkpoint', async (_event, { datadir } = {}) => {
     ? { ...lastNodeStartOpts, datadir: datadir || lastNodeStartOpts.datadir }
     : {
         datadir: defaultDatadir(datadir),
-        seeds: DEFAULT_SEEDS,
+        seeds: defaultSeedList(),
         mine: false,
       };
   const started = await startFullNode(opts);

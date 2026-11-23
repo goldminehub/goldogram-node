@@ -75,29 +75,29 @@ test('selectNamedCoreOrphans ignores path', () => {
 
 test('netstat + port orphans require goldogram in the image name', () => {
   const netstat = [
-    '  TCP    0.0.0.0:8333           0.0.0.0:0              LISTENING       99',
-    '  TCP    [::]:8335              [::]:0                 LISTENING       100',
-    '  TCP    0.0.0.0:8333           0.0.0.0:0              LISTENING       50',
+    '  TCP    0.0.0.0:18333           0.0.0.0:0              LISTENING       99',
+    '  TCP    [::]:18335              [::]:0                 LISTENING       100',
+    '  TCP    0.0.0.0:18333           0.0.0.0:0              LISTENING       50',
     '  TCP    127.0.0.1:8080         0.0.0.0:0              LISTENING       9',
   ].join('\n');
   const ports = parseNetstatAno(netstat);
   assert.deepEqual(ports.map((p) => p.pid), [99, 100, 50]);
   const listeners = [
-    { pid: 99, port: 8333, name: 'goldogram-core.exe' },
-    { pid: 100, port: 8335, name: 'goldogram-core.exe' },
-    { pid: 50, port: 8333, name: 'svchost.exe' },
+    { pid: 99, port: 18333, name: 'goldogram-core.exe' },
+    { pid: 100, port: 18335, name: 'goldogram-core.exe' },
+    { pid: 50, port: 18333, name: 'svchost.exe' },
   ];
   const orphans = selectGoldogramPortOrphans(listeners);
   assert.deepEqual(orphans.map((p) => p.pid).sort((a, b) => a - b), [99, 100]);
 });
 
 test('ss/ps parsers and kill log line', () => {
-  const ss = 'LISTEN 0 128 0.0.0.0:8333 0.0.0.0:* users:(("goldogram-core",pid=4242,fd=8))';
-  assert.deepEqual(parseSsLp(ss), [{ port: 8333, pid: 4242, name: 'goldogram-core' }]);
+  const ss = 'LISTEN 0 128 0.0.0.0:18333 0.0.0.0:* users:(("goldogram-core",pid=4242,fd=8))';
+  assert.deepEqual(parseSsLp(ss), [{ port: 18333, pid: 4242, name: 'goldogram-core' }]);
   const ps = ' 4242 goldogram-core\n    7 bash';
   const named = selectNamedCoreOrphans(parsePsPidComm(ps));
   assert.deepEqual(named.map((p) => p.pid), [4242]);
-  const merged = mergeKillTargets(named, [{ pid: 4242, port: 8333, name: 'goldogram-core' }]);
+  const merged = mergeKillTargets(named, [{ pid: 4242, port: 18333, name: 'goldogram-core' }]);
   assert.equal(merged.length, 1);
   assert.ok(merged[0].reasons.includes('name'));
   assert.ok(merged[0].reasons.includes('port'));

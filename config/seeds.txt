@@ -1,0 +1,4 @@
+# P2P seeds, one host:port per line.
+# Canonical listener port is 18333. A line with no port uses 18333.
+# The binary and the node app both read this file.
+# Add one line per main node. Do not list the same machine twice.
